@@ -1,0 +1,47 @@
+# Gives a welcome kit to a player and announces it in chat.
+#
+# @param p the player to give the kit to
+# @param announce whether to broadcast a message about it
+# @param kit the item type that represents the kit
+# @return whether the kit was successfully given
+function giveWelcomeKit(p: player, announce: boolean, kit: itemtype) :: boolean:
+	give kit to p
+	if announce is true:
+		broadcast "<#f18d8d>%p% &ljust joined and got a kit!"
+	return true
+
+# Calculates the payout for a player based on their play time.
+# Longer sessions get a small bonus on top of the base rate.
+#
+# @param p the player to calculate the payout for
+# @param minutesPlayed how many minutes they've played this session
+# @return the payout amount in coins
+# @deprecated use economy.calculatePayout() from the new economy addon instead
+function calculatePayout(p: player, minutesPlayed: number) :: number:
+	set {_base} to minutesPlayed * 2
+	if minutesPlayed > 60:
+		add 50 to {_base}
+	return {_base}
+
+# Logs that a player did something.
+#
+# This one has no `:: type` return declaration, but the @return tag below
+# still claims one - r4tsk flags that mismatch as a diagnostic.
+#
+# TODO hook this up to the real logging addon once it's released.
+# WARN this still uses the placeholder log format below.
+# ! do not remove this until the new logging system ships.
+# important: "!" and "important" both trigger the same red highlighting.
+#
+# @param p the player to log a message for
+# @return whether logging succeeded
+function logNothing(p: player):
+	send "logged" to p
+
+on join:
+	# Hover over either call below to see the parsed doc comment:
+	# description, per-parameter descriptions, return value and the
+	# deprecation warning (for calculatePayout) all show up in the tooltip.
+	set {_gotKit} to giveWelcomeKit(player, true, diamond sword)
+	set {_payout} to calculatePayout(player, 42)
+	logNothing(player)

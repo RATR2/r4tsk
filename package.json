@@ -1,0 +1,204 @@
+{
+  "name": "r4tsk",
+  "displayName": "r4tsk - Skript Language Support",
+  "description": "Skript language support: syntax highlighting, hover call-signature preview, autocomplete, diagnostics, go-to-definition and a bundled dark theme.",
+  "version": "0.1.0",
+  "publisher": "r4tsk",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RATR2/r4tsk"
+  },
+  "bugs": {
+    "url": "https://github.com/RATR2/r4tsk/issues"
+  },
+  "homepage": "https://github.com/RATR2/r4tsk#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Themes",
+    "Linters",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:skript"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "skript",
+        "aliases": ["Skript", "skript"],
+        "extensions": [".sk"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "skript",
+        "scopeName": "source.skript",
+        "path": "./syntaxes/skript.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "R4TSK Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/r4tsk-dark.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "r4tsk.configureAnnotationColors",
+        "title": "r4tsk: Configure Annotation Colors"
+      },
+      {
+        "command": "r4tsk.setSkriptVersion",
+        "title": "r4tsk: Set Skript Version"
+      },
+      {
+        "command": "r4tsk.configureCustomPatterns",
+        "title": "r4tsk: Configure Custom Colored Patterns"
+      }
+    ],
+    "configuration": {
+      "title": "r4tsk",
+      "properties": {
+        "r4tsk.diagnostics.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable diagnostics for undefined functions, argument mismatches and duplicate definitions."
+        },
+        "r4tsk.docsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to a docs.json file (from https://github.com/SkriptLang/skript-docs) to use instead of the bundled one/auto-download, e.g. one you generated/downloaded for your exact Skript version. Leave empty to use auto-download. Requires a window reload after changing."
+        },
+        "r4tsk.autoDownloadDocs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically download (and cache) a docs.json matching your configured Skript version from https://github.com/SkriptLang/skript-docs. Disable to always use the bundled snapshot instead. Ignored if r4tsk.docsPath is set."
+        },
+        "r4tsk.crossVersionSuggestions": {
+          "type": "boolean",
+          "default": true,
+          "description": "In the background, download a small set of docs.json snapshots (one per supported Skript minor version) so hover/diagnostics can suggest 'you might be thinking of X from Skript Y' when something isn't found in your configured version. Uses a few extra MB of one-time downloads/cache. Ignored if r4tsk.docsPath is set."
+        },
+        "r4tsk.annotationColors.param.foreground": {
+          "type": "string",
+          "default": "#1c91ff",
+          "description": "Foreground color for @param tags."
+        },
+        "r4tsk.annotationColors.param.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for @param tags (leave empty for none)."
+        },
+        "r4tsk.annotationColors.return.foreground": {
+          "type": "string",
+          "default": "#731cff",
+          "description": "Foreground color for @return/@returns tags."
+        },
+        "r4tsk.annotationColors.return.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for @return/@returns tags (leave empty for none)."
+        },
+        "r4tsk.annotationColors.deprecated.foreground": {
+          "type": "string",
+          "default": "#ffd21c",
+          "description": "Foreground color for @deprecated tags."
+        },
+        "r4tsk.annotationColors.deprecated.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for @deprecated tags (leave empty for none)."
+        },
+        "r4tsk.annotationColors.todo.foreground": {
+          "type": "string",
+          "default": "#1c6fff",
+          "description": "Foreground color for TODO annotations."
+        },
+        "r4tsk.annotationColors.todo.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for TODO annotations (leave empty for none)."
+        },
+        "r4tsk.annotationColors.warn.foreground": {
+          "type": "string",
+          "default": "#ffd21c",
+          "description": "Foreground color for WARN annotations."
+        },
+        "r4tsk.annotationColors.warn.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for WARN annotations (leave empty for none)."
+        },
+        "r4tsk.annotationColors.important.foreground": {
+          "type": "string",
+          "default": "#ff0000",
+          "description": "Foreground color for !/important annotations (applies to the rest of the line too)."
+        },
+        "r4tsk.annotationColors.important.background": {
+          "type": "string",
+          "default": "",
+          "description": "Background color for !/important annotations (leave empty for none)."
+        },
+        "r4tsk.customPatterns": {
+          "type": "array",
+          "default": [],
+          "description": "Custom regex patterns to color anywhere in a .sk file - e.g. an ASCII-art banner comment at the top of your scripts. Matches across the whole document (not just comments), so multi-line patterns work too. Run \"r4tsk: Configure Custom Colored Patterns\" to edit this in Settings.",
+          "items": {
+            "type": "object",
+            "required": ["pattern", "color"],
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "JavaScript regular expression to match. The 'g' flag is always applied automatically; use the multiline flag 'm' in \"flags\" if your pattern uses ^/$ per-line."
+              },
+              "color": {
+                "type": "string",
+                "description": "Foreground color, e.g. #ff69b4."
+              },
+              "background": {
+                "type": "string",
+                "description": "Optional background color."
+              },
+              "flags": {
+                "type": "string",
+                "description": "Optional extra regex flags, e.g. 'm' (multiline) or 'i' (case-insensitive)."
+              },
+              "bold": {
+                "type": "boolean",
+                "default": false
+              },
+              "italic": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "package": "vsce package",
+    "publish:vsce": "vsce publish",
+    "publish:ovsx": "ovsx publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "ovsx": "^0.10.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

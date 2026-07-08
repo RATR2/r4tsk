@@ -1,0 +1,216 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Skript",
+  "scopeName": "source.skript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#function-definition" },
+    { "include": "#command-definition" },
+    { "include": "#event-definition" },
+    { "include": "#section-header" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#numbers" },
+    { "include": "#control-keywords" },
+    { "include": "#effect-keywords" },
+    { "include": "#logical-operators" },
+    { "include": "#types" },
+    { "include": "#function-call" },
+    { "include": "#colon-section" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.skript",
+          "begin": "#",
+          "end": "$",
+          "patterns": [{ "include": "#doc-tags" }]
+        }
+      ]
+    },
+    "doc-tags": {
+      "patterns": [
+        { "name": "keyword.tag.param.doc.skript", "match": "(?i:@param\\b)" },
+        { "name": "keyword.tag.return.doc.skript", "match": "(?i:@returns?\\b)" },
+        { "name": "keyword.tag.deprecated.doc.skript", "match": "(?i:@deprecated\\b)" },
+        { "name": "keyword.tag.todo.skript", "match": "\\bTODO\\b" },
+        { "name": "keyword.tag.warn.skript", "match": "\\bWARN\\b" },
+        { "name": "keyword.tag.bang.skript", "match": "(?:!|(?i:\\bimportant\\b)).*$" }
+      ]
+    },
+    "bukkit-color-codes": {
+      "patterns": [
+        { "name": "constant.other.color.bukkit0.skript", "match": "&0" },
+        { "name": "constant.other.color.bukkit1.skript", "match": "&1" },
+        { "name": "constant.other.color.bukkit2.skript", "match": "&2" },
+        { "name": "constant.other.color.bukkit3.skript", "match": "&3" },
+        { "name": "constant.other.color.bukkit4.skript", "match": "&4" },
+        { "name": "constant.other.color.bukkit5.skript", "match": "&5" },
+        { "name": "constant.other.color.bukkit6.skript", "match": "&6" },
+        { "name": "constant.other.color.bukkit7.skript", "match": "&7" },
+        { "name": "constant.other.color.bukkit8.skript", "match": "&8" },
+        { "name": "constant.other.color.bukkit9.skript", "match": "&9" },
+        { "name": "constant.other.color.bukkita.skript", "match": "&[aA]" },
+        { "name": "constant.other.color.bukkitb.skript", "match": "&[bB]" },
+        { "name": "constant.other.color.bukkitc.skript", "match": "&[cC]" },
+        { "name": "constant.other.color.bukkitd.skript", "match": "&[dD]" },
+        { "name": "constant.other.color.bukkite.skript", "match": "&[eE]" },
+        { "name": "constant.other.color.bukkitf.skript", "match": "&[fF]" },
+        { "name": "markup.bold.bukkitl.skript", "match": "&[lL]" },
+        { "name": "markup.strikethrough.bukkitm.skript", "match": "&[mM]" },
+        { "name": "markup.underline.bukkitn.skript", "match": "&[nN]" },
+        { "name": "markup.italic.bukkito.skript", "match": "&[oO]" },
+        { "name": "constant.other.color.bukkitk.skript", "match": "&[kK]" },
+        { "name": "constant.other.color.bukkitr.skript", "match": "&[rR]" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.skript",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.skript",
+          "match": "\"\""
+        },
+        { "include": "#bukkit-color-codes" },
+        {
+          "name": "constant.other.color.hextag.skript",
+          "match": "<#[0-9a-fA-F]{6}>"
+        },
+        {
+          "name": "meta.embedded.expression.skript",
+          "begin": "%",
+          "end": "%",
+          "beginCaptures": { "0": { "name": "punctuation.definition.expression.begin.skript" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.expression.end.skript" } },
+          "patterns": [
+            { "include": "#types" },
+            {
+              "name": "variable.other.expression.skript",
+              "match": "[^%]+"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": {
+      "name": "variable.other.skript",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.variable.begin.skript" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.variable.end.skript" } },
+      "patterns": [
+        {
+          "name": "keyword.other.local-scope.skript",
+          "match": "^_"
+        },
+        {
+          "name": "punctuation.separator.list.skript",
+          "match": "::"
+        },
+        {
+          "name": "constant.language.wildcard.skript",
+          "match": "\\*"
+        },
+        {
+          "begin": "%",
+          "end": "%",
+          "name": "meta.embedded.expression.skript",
+          "patterns": [{ "include": "#types" }]
+        },
+        {
+          "name": "variable.other.name.skript",
+          "match": "[^{}%*]+"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.skript",
+      "match": "(?<![\\w])-?\\d+(\\.\\d+)?(?![\\w])"
+    },
+    "function-definition": {
+      "begin": "^(\\s*)(function)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.function.skript" },
+        "3": { "name": "entity.name.function.skript" },
+        "4": { "name": "punctuation.section.parameters.begin.skript" }
+      },
+      "end": "(\\))\\s*(::)?\\s*([a-zA-Z_][\\w ]*)?\\s*(:)",
+      "endCaptures": {
+        "1": { "name": "punctuation.section.parameters.end.skript" },
+        "2": { "name": "punctuation.separator.return-type.skript" },
+        "3": { "name": "support.type.return.skript" },
+        "4": { "name": "punctuation.section.section-header.skript" }
+      },
+      "patterns": [
+        {
+          "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([a-zA-Z_][\\w ]*?)(?=\\s*[,)])",
+          "captures": {
+            "1": { "name": "variable.parameter.skript" },
+            "2": { "name": "punctuation.separator.type.skript" },
+            "3": { "name": "support.type.skript" }
+          }
+        },
+        { "name": "punctuation.separator.parameter.skript", "match": "," },
+        { "include": "#strings" },
+        { "include": "#numbers" }
+      ]
+    },
+    "command-definition": {
+      "match": "^(\\s*)(command)\\s+(/[a-zA-Z0-9_]+)([^:]*)(:)",
+      "captures": {
+        "2": { "name": "keyword.control.command.skript" },
+        "3": { "name": "entity.name.function.command.skript" },
+        "4": { "name": "variable.parameter.command.skript" },
+        "5": { "name": "punctuation.section.section-header.skript" }
+      }
+    },
+    "event-definition": {
+      "match": "^(\\s*)(on)\\s+([^:]+?)\\s*(:)\\s*$",
+      "captures": {
+        "2": { "name": "keyword.control.event.skript" },
+        "3": { "name": "entity.name.type.event.skript" },
+        "4": { "name": "punctuation.section.section-header.skript" }
+      }
+    },
+    "section-header": {
+      "match": "^(\\s*)(options|variables|import|parameters|trigger|permission|permission message|description|usage|aliases|cooldown|cooldown message|executable by|player only|console only)\\s*(:)",
+      "captures": {
+        "2": { "name": "keyword.control.section.skript" },
+        "3": { "name": "punctuation.section.section-header.skript" }
+      }
+    },
+    "colon-section": {
+      "match": "^\\s*(else if|else|if|loop|while)\\b(.*?)(:)\\s*$",
+      "captures": {
+        "1": { "name": "keyword.control.conditional.skript" },
+        "2": { "name": "meta.condition.skript" },
+        "3": { "name": "punctuation.section.section-header.skript" }
+      }
+    },
+    "control-keywords": {
+      "name": "keyword.control.skript",
+      "match": "\\b(if|else if|else|loop|while|exit|exit loop|continue|stop|stop trigger|return|wait|parse if|parse|due to|otherwise)\\b"
+    },
+    "effect-keywords": {
+      "name": "keyword.other.effect.skript",
+      "match": "\\b(set|add|remove all|remove|delete|clear|give|take|send|broadcast|teleport|cancel event|cancel|make|kill|heal|damage|drop|shoot|push|open|close|enchant|play sound|create|spawn|feed|change|increase|decrease|reset|lock|unlock|show|hide|apply)\\b"
+    },
+    "logical-operators": {
+      "name": "keyword.operator.logical.skript",
+      "match": "\\b(and|or|not|is|isn't|are|aren't|was|wasn't|contains|doesn't contain|does not contain|in|between|through)\\b"
+    },
+    "types": {
+      "name": "support.type.skript",
+      "match": "\\b(string|text|number|integer|boolean|object|player|players|offlineplayer|entity|entities|entity type|item|itemtype|itemstack|location|world|block|blockdata|chunk|inventory|potioneffect|potioneffecttype|color|vector|date|timespan|timeperiod|time|command sender|console)\\b"
+    },
+    "function-call": {
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "entity.name.function.call.skript" }
+      }
+    }
+  }
+}
