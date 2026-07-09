@@ -81,6 +81,16 @@ export function parseDocument(document: vscode.TextDocument): ParsedDocument {
     while ((match = CALL_SITE.exec(masked))) {
       const name = match[1];
       const nameStart = match.index;
+
+      // Addons like Skript-Reflect call Java methods via dot-chain syntax,
+      // e.g. `BetterModel.model(...)` or `{_opt}.isEmpty()` - not a Skript
+      // function call, even though it has the same `identifier(` shape.
+      // Treating it as one produced a false "undefined function" diagnostic
+      // for every single method in a chain.
+      let precedingIdx = nameStart - 1;
+      while (precedingIdx >= 0 && /\s/.test(masked[precedingIdx])) precedingIdx--;
+      if (precedingIdx >= 0 && masked[precedingIdx] === ".") continue;
+
       const openIdx = nameStart + match[0].length;
       if (masked[openIdx] !== "(") continue;
 
