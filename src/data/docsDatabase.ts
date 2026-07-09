@@ -304,6 +304,7 @@ export class DocsDatabase {
   private readonly byKeyword = new Map<string, DocEntry[]>();
   private readonly compiledPatternCache = new Map<string, CompiledPattern[]>();
   private readonly substringPatternCache = new Map<string, CompiledPattern[]>();
+  private nonDeprecatedPropertyPatterns: CompiledPattern[] | undefined;
 
   /**
    * Accepts one or more raw sources - normally the core Skript docs plus
@@ -526,13 +527,56 @@ export class DocsDatabase {
         const match = pattern.regex.exec(line);
         if (match) {
           const [index, end] = tightenMatchRange(match);
-          results.push({ entry, index, length: end - index });
+          if (!this.coveredByNonDeprecatedProperty(line, index, end)) {
+            results.push({ entry, index, length: end - index });
+          }
           break;
         }
       }
     }
 
     return results;
+  }
+
+  /**
+   * Skript's 2.13 "property" system reorganized several older, standalone
+   * expressions (each covering many unrelated types at once, e.g. the old
+   * "Name / Display Name / Tab List Name" expression) into small, per-concept
+   * properties ("name", "display name", ...) - same literal call syntax
+   * (`[the] <property> of %thing%` / `%thing%'s <property>`, a long-standing
+   * Skript convention that predates the property system itself), just
+   * reorganized on the implementation side. docs.json doesn't give
+   * properties their own `patterns` (they're closer to metadata - id, name,
+   * applicable types), so their call syntax is synthesized here purely to
+   * detect this overlap: if a deprecated match is also exactly covered by
+   * some non-deprecated property, it's the same reorganization-not-removal
+   * case as the cross-version name check above, just within one version.
+   */
+  private coveredByNonDeprecatedProperty(line: string, start: number, end: number): boolean {
+    for (const pattern of this.getNonDeprecatedPropertyPatterns()) {
+      const match = pattern.regex.exec(line);
+      if (!match) continue;
+      const [mStart, mEnd] = tightenMatchRange(match);
+      if (mStart < end && mEnd > start) return true;
+    }
+    return false;
+  }
+
+  private getNonDeprecatedPropertyPatterns(): CompiledPattern[] {
+    if (!this.nonDeprecatedPropertyPatterns) {
+      this.nonDeprecatedPropertyPatterns = this.entries
+        .filter((e) => e.category === "property" && !e.deprecated)
+        .flatMap((e) => [`[the] ${e.name} of %objects%`, `%objects%'[s] ${e.name}`])
+        .map((p) => {
+          try {
+            return compilePattern(p, false);
+          } catch {
+            return undefined;
+          }
+        })
+        .filter((c): c is CompiledPattern => c !== undefined);
+    }
+    return this.nonDeprecatedPropertyPatterns;
   }
 
   /**
