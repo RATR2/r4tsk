@@ -2,6 +2,7 @@ import * as fs from "fs";
 import { DocCategory, DocEntry, DocsRef, RawDocsFile, RawPatternedEntry, UnknownDocsFile } from "./docsTypes";
 import { adaptToRawDocsFile } from "./docsSchemaAdapter";
 import { CompiledPattern, compilePattern } from "../parser/patternCompiler";
+import { findCommentStart } from "../utils/textScanning";
 
 export interface LineMatch {
   entry: DocEntry;
@@ -350,7 +351,10 @@ export class DocsDatabase {
    * first so we're not compiling/testing all ~1200 patterns per line.
    */
   matchLine(line: string): LineMatch | undefined {
-    let trimmed = line.trim();
+    const commentStart = findCommentStart(line);
+    const code = commentStart === -1 ? line : line.slice(0, commentStart);
+
+    let trimmed = code.trim();
     // Control-flow keywords ("if", "else if", "while", "unless") and a
     // trailing section colon aren't part of the condition/effect's own
     // pattern - they're Skript's own block-structure syntax wrapping it.
