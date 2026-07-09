@@ -61,6 +61,14 @@
       {
         "command": "r4tsk.configureCustomPatterns",
         "title": "r4tsk: Configure Custom Colored Patterns"
+      },
+      {
+        "command": "r4tsk.setDocsPath",
+        "title": "r4tsk: Set Core Docs File..."
+      },
+      {
+        "command": "r4tsk.manageAddonDocsFiles",
+        "title": "r4tsk: Manage Addon Docs Files..."
       }
     ],
     "configuration": {
@@ -74,13 +82,13 @@
         "r4tsk.docsPath": {
           "type": "string",
           "default": "",
-          "description": "Absolute path to a docs.json file (from https://github.com/SkriptLang/skript-docs) to use instead of the bundled one/auto-download, e.g. one you generated/downloaded for your exact Skript version. Leave empty to use auto-download. Requires a window reload after changing."
+          "description": "Absolute path to a docs.json file (from https://github.com/SkriptLang/skript-docs) to use instead of the bundled one/auto-download, e.g. one you generated/downloaded for your exact Skript version. Leave empty to use auto-download. Applies live, no reload needed - or run \"r4tsk: Set Core Docs File...\" to pick one with a file browser instead of typing a path."
         },
         "r4tsk.additionalDocsPaths": {
           "type": "array",
           "default": [],
           "items": { "type": "string" },
-          "description": "Absolute paths to additional docs.json files to merge in alongside the core Skript docs - e.g. for addons like SkBee or Skript-GUI. Generate one by running a Skript server with the addon installed and executing '/sk gen-docs' (its docs.json uses the same schema as core Skript's, since the generator captures every installed addon's syntax). Applies live, no reload needed."
+          "description": "Absolute paths to additional docs.json files to merge in alongside the core Skript docs - e.g. for addons like SkBee or Skript-GUI. Generate one by running a Skript server with the addon installed and executing '/sk gen-docs' (its docs.json uses the same schema as core Skript's, since the generator captures every installed addon's syntax). Applies live, no reload needed - or run \"r4tsk: Manage Addon Docs Files...\" to add/remove entries with a file browser instead of editing this list by hand."
         },
         "r4tsk.autoDownloadDocs": {
           "type": "boolean",

@@ -17,6 +17,7 @@ import { DocsHolder } from "./data/docsHolder";
 import { DocsDownloadManager } from "./data/docsDownloadManager";
 import { CrossVersionIndex } from "./data/crossVersionIndex";
 import { SkriptVersionManager } from "./providers/skriptVersionManager";
+import { registerManageAddonDocsCommand, registerSetDocsPathCommand } from "./providers/docsPathCommands";
 
 const SKRIPT_SELECTOR: vscode.DocumentSelector = { language: "skript" };
 
@@ -27,8 +28,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const customPatternDecorator = new CustomPatternDecorator();
 
   const config = () => vscode.workspace.getConfiguration("r4tsk");
-  const customDocsPath = config().get<string>("docsPath")?.trim();
   const bundledDocsPath = path.join(context.extensionPath, "data", "docs.json");
+
+  const getCustomDocsPath = (): string | undefined => config().get<string>("docsPath")?.trim() || undefined;
 
   /** Absolute paths to addon docs.json files (e.g. generated via `/sk gen-docs` on a server with SkBee/Skript-GUI/etc. installed) to merge with whichever core Skript docs source is active. */
   const getAdditionalDocsPaths = (): string[] =>
@@ -49,10 +51,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return texts;
   };
 
-  const additionalDocsPaths = getAdditionalDocsPaths();
-  const bundledDocs = customDocsPath
-    ? (DocsDatabase.loadMultiple(customDocsPath, additionalDocsPaths) ?? DocsDatabase.loadMultiple(bundledDocsPath, additionalDocsPaths))
-    : DocsDatabase.loadMultiple(bundledDocsPath, additionalDocsPaths);
+  /** (Re)establishes the docs database from current settings: a custom `docsPath` if set (falling back to bundled if it fails to load), else the bundled snapshot - always merged with `additionalDocsPaths`. */
+  const establishDocsFromSettings = (): DocsDatabase | undefined => {
+    const custom = getCustomDocsPath();
+    const additional = getAdditionalDocsPaths();
+    return custom
+      ? (DocsDatabase.loadMultiple(custom, additional) ?? DocsDatabase.loadMultiple(bundledDocsPath, additional))
+      : DocsDatabase.loadMultiple(bundledDocsPath, additional);
+  };
+
+  const bundledDocs = establishDocsFromSettings();
   const docsHolder = new DocsHolder(bundledDocs, bundledDocs?.sourceVersion);
   const downloadManager = new DocsDownloadManager(path.join(context.globalStorageUri.fsPath, "docs-cache"));
   const crossVersionIndex = new CrossVersionIndex(downloadManager);
@@ -75,7 +83,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const applyVersion = async (version: string): Promise<void> => {
     const autoDownload = config().get<boolean>("autoDownloadDocs", true);
-    if (!autoDownload || customDocsPath) return;
+    if (!autoDownload || getCustomDocsPath()) return;
 
     versionManager.setResolving(true);
     try {
@@ -104,6 +112,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.commands.executeCommand("workbench.action.openSettings", "r4tsk.customPatterns")
     ),
     vscode.commands.registerCommand("r4tsk.setSkriptVersion", () => versionManager.promptForVersion()),
+    registerSetDocsPathCommand(),
+    registerManageAddonDocsCommand(),
     vscode.languages.registerHoverProvider(SKRIPT_SELECTOR, new SkriptHoverProvider(index, docsHolder, crossVersionIndex)),
     vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index), "{", "(", "%", " "),
     vscode.languages.registerDefinitionProvider(SKRIPT_SELECTOR, new SkriptDefinitionProvider(index)),
@@ -143,15 +153,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (annotationDecorator.isRelevantConfigChange(e) || customPatternDecorator.isRelevantConfigChange(e)) {
         for (const editor of vscode.window.visibleTextEditors) refreshDecorations(editor);
       }
-      if (e.affectsConfiguration("r4tsk.additionalDocsPaths")) {
+      if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {
         const storedVersion = versionManager.getVersion();
-        if (storedVersion) {
+        if (storedVersion && !getCustomDocsPath()) {
           void applyVersion(storedVersion);
         } else {
-          const reloaded = customDocsPath
-            ? (DocsDatabase.loadMultiple(customDocsPath, getAdditionalDocsPaths()) ??
-              DocsDatabase.loadMultiple(bundledDocsPath, getAdditionalDocsPaths()))
-            : DocsDatabase.loadMultiple(bundledDocsPath, getAdditionalDocsPaths());
+          const reloaded = establishDocsFromSettings();
           if (reloaded) {
             docsHolder.set(reloaded, reloaded.sourceVersion);
             refreshAllOpenDocuments();
@@ -185,7 +192,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (storedVersion) void applyVersion(storedVersion);
   }
 
-  if (config().get<boolean>("crossVersionSuggestions", true) && !customDocsPath) {
+  if (config().get<boolean>("crossVersionSuggestions", true) && !getCustomDocsPath()) {
     void crossVersionIndex.warmUp().then(refreshAllOpenDocuments);
   }
 }

@@ -141,6 +141,86 @@ function extractAttachedOptionalForms(pattern: string): string[] {
   return forms;
 }
 
+const MAX_WORD_EXPANSIONS = 32;
+
+/**
+ * Expands a whitespace-free pattern segment (letters plus possibly nested
+ * `(choice)`/`[optional]` groups, no spaces) into every literal string it
+ * could produce - e.g. `explo(d(e|ing)|sion)` -> ["explod", "explode",
+ * "exploding", "explosion"]. Capped to avoid combinatorial blowup on
+ * heavily-branching segments.
+ */
+function expandSegment(segment: string): string[] {
+  let results = [""];
+  let i = 0;
+
+  while (i < segment.length) {
+    if (results.length >= MAX_WORD_EXPANSIONS) break;
+    const c = segment[i];
+
+    if (c === "(" || c === "[") {
+      const close = c === "(" ? ")" : "]";
+      let depth = 1;
+      let j = i + 1;
+      while (j < segment.length && depth > 0) {
+        if (segment[j] === c) depth++;
+        else if (segment[j] === close) depth--;
+        j++;
+      }
+      const inner = segment.slice(i + 1, j - 1);
+      const alternatives = c === "(" ? splitTopLevelPipe(inner).flatMap(expandSegment) : ["", ...expandSegment(inner)];
+      results = results.flatMap((r) => alternatives.map((a) => r + a)).slice(0, MAX_WORD_EXPANSIONS);
+      i = j;
+      continue;
+    }
+
+    results = results.map((r) => r + c);
+    i++;
+  }
+
+  return [...new Set(results.map((r) => r.toLowerCase()))];
+}
+
+function splitTopLevelPipe(text: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(" || text[i] === "[") depth++;
+    else if (text[i] === ")" || text[i] === "]") depth--;
+    else if (text[i] === "|" && depth === 0) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+/**
+ * Finds compound words built by directly-adjacent choice/optional groups
+ * with no whitespace between the letters and the group - e.g. the
+ * `explode`/`exploding`/`explosion` event pattern `explo(d(e|ing)|sion)`,
+ * where plain bracket-stripping would only ever see meaningless fragments
+ * ("explo", "d", "e", "ing", "sion"), never the actual words used in code.
+ */
+function extractCompoundWordForms(pattern: string): string[] {
+  const cleaned = pattern.replace(/<[^>]*>/g, " ").replace(/%[^%]*%/g, " ");
+  const segments = cleaned.split(/\s+/).filter(Boolean);
+  const words = new Set<string>();
+
+  for (const segment of segments) {
+    if (!/[()[\]]/.test(segment)) continue;
+    for (const variant of expandSegment(segment)) {
+      for (const w of variant.match(/[a-z']+/g) ?? []) {
+        if (w.length > 1) words.add(w);
+      }
+    }
+  }
+
+  return [...words];
+}
+
 /** Common words that would otherwise match almost every entry and drown out real lookups. */
 const STOPWORDS = new Set([
   "the", "a", "an", "of", "to", "in", "on", "is", "are", "was", "were", "with", "for",
@@ -206,6 +286,7 @@ export class DocsDatabase {
       for (const p of entry.patterns) {
         for (const k of extractKeywords(p)) keywords.add(k);
         for (const k of extractAttachedOptionalForms(p)) keywords.add(k);
+        for (const k of extractCompoundWordForms(p)) keywords.add(k);
       }
       for (const keyword of keywords) {
         if (STOPWORDS.has(keyword)) continue;
