@@ -198,6 +198,34 @@ function expandSegment(segment: string): string[] {
   return [...new Set(results.map((r) => r.toLowerCase()))];
 }
 
+/**
+ * A `%placeholder%` at the very start/end of an unanchored match is greedy
+ * and has nothing to anchor against on that side, so it happily swallows
+ * whatever unrelated text precedes/follows the pattern's actual literal
+ * content within the line (e.g. matching `broadcast "%player's display
+ * name%"` would otherwise report the whole `broadcast "%player's display
+ * name` span instead of just `player's display name`). Trims a leading
+ * and/or trailing capture group back to where the literal content actually
+ * starts/ends, using exact capture positions from the "d" (hasIndices) flag.
+ * Falls back to the untrimmed range if that would invert start/end (e.g. a
+ * pattern that's nothing but a single placeholder, no literal anchor at all).
+ */
+function tightenMatchRange(match: RegExpExecArray): [number, number] {
+  const fullStart = match.index;
+  const fullEnd = match.index + match[0].length;
+  const indices = (match as RegExpExecArray & { indices?: Array<[number, number] | undefined> }).indices;
+  if (!indices || indices.length <= 1) return [fullStart, fullEnd];
+
+  let start = fullStart;
+  let end = fullEnd;
+  const first = indices[1];
+  if (first && first[0] === start) start = first[1];
+  const last = indices[indices.length - 1];
+  if (last && last[1] === end) end = last[0];
+
+  return start < end ? [start, end] : [fullStart, fullEnd];
+}
+
 function splitTopLevelPipe(text: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -275,6 +303,7 @@ export class DocsDatabase {
   private readonly byNameLower = new Map<string, DocEntry[]>();
   private readonly byKeyword = new Map<string, DocEntry[]>();
   private readonly compiledPatternCache = new Map<string, CompiledPattern[]>();
+  private readonly substringPatternCache = new Map<string, CompiledPattern[]>();
 
   /**
    * Accepts one or more raw sources - normally the core Skript docs plus
@@ -448,6 +477,62 @@ export class DocsDatabase {
       this.compiledPatternCache.set(entry.uid, compiled);
     }
     return compiled;
+  }
+
+  private getSubstringCompiledPatterns(entry: DocEntry): CompiledPattern[] {
+    let compiled = this.substringPatternCache.get(entry.uid);
+    if (!compiled) {
+      compiled = entry.patterns.map((p) => {
+        try {
+          return compilePattern(p, false);
+        } catch {
+          return undefined;
+        }
+      }).filter((c): c is CompiledPattern => c !== undefined);
+      this.substringPatternCache.set(entry.uid, compiled);
+    }
+    return compiled;
+  }
+
+  /**
+   * Finds every deprecated syntax element actually *used* (as a real match
+   * of its pattern, not just a coincidentally-shared keyword) anywhere
+   * within `line` - including as a sub-expression of something else, e.g.
+   * `%player%'s display name` embedded inside a `broadcast` effect.
+   *
+   * This is deliberately substring-based rather than reusing `matchLine`
+   * (whole-line only): a bare word like "display" is a poor signal on its
+   * own (it's also a literal entity type - "item display" - and unrelated
+   * property names - "display scale"), but the *pattern* actually requires
+   * "display" immediately followed by "name[s]", which those don't have.
+   */
+  findDeprecatedUsages(line: string): Array<{ entry: DocEntry; index: number; length: number }> {
+    const results: Array<{ entry: DocEntry; index: number; length: number }> = [];
+    const candidateUids = new Set<string>();
+
+    CODE_WORD.lastIndex = 0;
+    let wordMatch: RegExpExecArray | null;
+    while ((wordMatch = CODE_WORD.exec(line))) {
+      const word = wordMatch[0].toLowerCase();
+      if (STOPWORDS.has(word)) continue;
+      for (const entry of this.byKeyword.get(word) ?? []) if (entry.deprecated) candidateUids.add(entry.uid);
+      for (const entry of this.byNameLower.get(word) ?? []) if (entry.deprecated) candidateUids.add(entry.uid);
+    }
+
+    for (const uid of candidateUids) {
+      const entry = this.byUid.get(uid);
+      if (!entry) continue;
+      for (const pattern of this.getSubstringCompiledPatterns(entry)) {
+        const match = pattern.regex.exec(line);
+        if (match) {
+          const [index, end] = tightenMatchRange(match);
+          results.push({ entry, index, length: end - index });
+          break;
+        }
+      }
+    }
+
+    return results;
   }
 
   /**

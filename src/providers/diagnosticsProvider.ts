@@ -6,11 +6,6 @@ import { CrossVersionIndex } from "../data/crossVersionIndex";
 import { DocsDatabase } from "../data/docsDatabase";
 import { maskLine, maskVariableBraces } from "../utils/textScanning";
 
-// Includes hyphens so compound pseudo-identifiers like `loop-value` or
-// `event-block` are scanned as one token, not split into `loop`/`value`
-// (which would then wrongly match an unrelated "value of" expression, etc).
-const CODE_WORD = /[a-zA-Z][a-zA-Z'-]*/g;
-
 export class DiagnosticsManager {
   private readonly collection = vscode.languages.createDiagnosticCollection("r4tsk");
 
@@ -136,13 +131,18 @@ export class DiagnosticsManager {
   }
 
   /**
-   * Word-level scan (same heuristic as hover) over each line's actual code
-   * content - excluding comments, string literals and `{variable}` names -
-   * flagging deprecated syntax usage. Skips entries whose name also exists,
-   * non-deprecated, elsewhere (same version or a nearby one) - that means
-   * the feature was reorganized (e.g. an old condition folded into a newer
-   * "property" system) with identical syntax, not actually going away, so
-   * there's nothing for the user to act on.
+   * Scans each line's actual code content - excluding comments, string
+   * literals and `{variable}` names - for a real match of a deprecated
+   * pattern, anywhere within the line (not just when it's the line's whole
+   * content, since a deprecated expression can appear embedded as a
+   * sub-argument of something else). Deliberately *not* a bare keyword scan:
+   * a single shared word (e.g. "display" also being a literal entity type,
+   * "item display", and an unrelated property, "display scale") isn't
+   * enough - the pattern's actual required text has to appear together.
+   * Skips entries whose name also exists, non-deprecated, elsewhere (same
+   * version or a nearby one) - that means the feature was reorganized (e.g.
+   * an old condition folded into a newer "property" system) with identical
+   * syntax, not actually going away, so there's nothing for the user to act on.
    */
   private scanCodeUsage(
     document: vscode.TextDocument,
@@ -154,19 +154,14 @@ export class DiagnosticsManager {
     for (let line = 0; line < document.lineCount; line++) {
       const codeOnly = maskVariableBraces(maskLine(document.lineAt(line).text));
 
-      CODE_WORD.lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = CODE_WORD.exec(codeOnly))) {
-        const word = match[0];
-        const entry = currentDocs.lookupWord(word);
-        if (!entry?.deprecated) continue;
+      for (const { entry, index, length } of currentDocs.findDeprecatedUsages(codeOnly)) {
         if (
           this.crossVersion?.isReady &&
           this.crossVersion.hasNonDeprecatedElsewhere(entry.name, currentDocs.sourceVersion)
         )
           continue;
 
-        const range = new vscode.Range(line, match.index, line, match.index + word.length);
+        const range = new vscode.Range(line, index, line, index + length);
         diagnostics.push(
           new vscode.Diagnostic(
             range,
