@@ -35,6 +35,20 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
     if (def) return buildDefinitionHover(def);
 
     const docs = this.docs.current;
+
+    // Event headers ("on X:") get a category-restricted lookup: a word in
+    // the event phrase might coincidentally be the keyword of some
+    // unrelated effect/expression (e.g. "create" also being part of the
+    // "Lightning" effect's pattern), which would otherwise show up via the
+    // generic word-based fallback below and look like "on create:" was
+    // recognized as a real event when it isn't one.
+    const eventDef = parsed.events.find((ev) => ev.nameRange.contains(position));
+    if (eventDef) {
+      const eventMatch = docs?.matchLine(eventDef.name, ["event"]);
+      if (eventMatch) return buildLineMatchHover(eventMatch, docs!, eventDef.nameRange);
+      return buildUnrecognizedEventHover(eventDef.name, eventDef.nameRange);
+    }
+
     if (docs) {
       const lineText = document.lineAt(position.line).text;
       const lineMatch = docs.matchLine(lineText);
@@ -67,6 +81,15 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
 
     return undefined;
   }
+}
+
+function buildUnrecognizedEventHover(eventName: string, range: vscode.Range): vscode.Hover {
+  const md = new vscode.MarkdownString();
+  md.appendMarkdown(
+    `⚠️ \`on ${eventName}\` doesn't match any known event in the active docs database.\n\n` +
+      `It may be misspelled, from an addon not currently loaded (see \`r4tsk.additionalDocsPaths\`), or just not a real event.`
+  );
+  return new vscode.Hover(md, range);
 }
 
 function buildElsewhereHover(

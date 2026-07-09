@@ -350,7 +350,7 @@ export class DocsDatabase {
    * anywhere on the line. Candidates are narrowed via the keyword index
    * first so we're not compiling/testing all ~1200 patterns per line.
    */
-  matchLine(line: string): LineMatch | undefined {
+  matchLine(line: string, categoryFilter?: DocCategory[]): LineMatch | undefined {
     const commentStart = findCommentStart(line);
     const code = commentStart === -1 ? line : line.slice(0, commentStart);
 
@@ -378,6 +378,7 @@ export class DocsDatabase {
     for (const id of candidateIds) {
       const entry = this.byId.get(id);
       if (!entry) continue;
+      if (categoryFilter && !categoryFilter.includes(entry.category)) continue;
 
       for (const pattern of this.getCompiledPatterns(entry)) {
         const match = pattern.regex.exec(trimmed);
