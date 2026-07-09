@@ -19,7 +19,13 @@ const EVENT_HEADER = /^(\s*)on\s+([^:]+?)\s*:\s*$/;
 const COMMAND_SUBKEY = /^(\s*)(permission|description|usage|aliases|permission message|cooldown message):\s*(.*)$/i;
 const PARAM_PATTERN = /^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([a-zA-Z_][\w ]*?)(?:\s*=\s*(.*))?$/;
 const RETURN_TYPE = /^\)\s*(?:::\s*([a-zA-Z_][\w ]*?))?\s*:\s*$/;
-const CALL_SITE = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g;
+// No whitespace allowed before "(" - Skript's own function-call syntax
+// requires the paren immediately after the name, same as most languages.
+// A space before it is a keyword/expression immediately followed by a
+// parenthesized group (grouping, not a call), e.g. `to (({_page}-1)*...)`
+// or `formatted (join {_pages::*} with " ")` - very common in real code
+// and previously misdetected as calls to nonexistent functions "to"/"formatted".
+const CALL_SITE = /\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\()/g;
 
 export function parseDocument(document: vscode.TextDocument): ParsedDocument {
   const lineCount = document.lineCount;
