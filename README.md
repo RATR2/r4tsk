@@ -97,7 +97,7 @@ npm run package       # produce a .vsix via vsce
 ```
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-0.1.2.vsix` via the "Install from VSIX" command.
+built `r4tsk-1.0.0.vsix` via the "Install from VSIX" command.
 
 ## License
 
