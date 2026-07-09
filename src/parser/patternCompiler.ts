@@ -153,12 +153,24 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function compilePattern(pattern: string): CompiledPattern {
+/**
+ * @param anchored Whole-string match (`^...$`, the default) for identifying
+ * exactly which syntax element a full line/phrase is. Pass `false` for a
+ * substring search instead - matches the pattern wherever it appears within
+ * a larger line, e.g. to spot a deprecated expression used as a sub-argument
+ * of something else, without requiring it to be the line's only content.
+ */
+export function compilePattern(pattern: string, anchored = true): CompiledPattern {
   const parser = new PatternParser(pattern.trim());
   const body = parser.parseSequence("");
 
+  // "d" (hasIndices) gives each capture group's exact [start, end] via
+  // match.indices - only needed unanchored, to trim a leading/trailing
+  // wildcard capture back to the pattern's actual literal span (a greedy
+  // %placeholder% at the very start/end of an unanchored match would
+  // otherwise swallow unrelated surrounding text into the reported range).
   return {
-    regex: new RegExp(`^\\s*${body}\\s*$`, "i"),
+    regex: anchored ? new RegExp(`^\\s*${body}\\s*$`, "i") : new RegExp(body, "id"),
     placeholders: parser.placeholders,
     source: pattern,
     requiredLiteralChars: parser.requiredLiteralChars,
