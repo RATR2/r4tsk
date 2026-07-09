@@ -12,6 +12,14 @@ export interface LineMatch {
 
 const CODE_WORD = /[a-zA-Z][a-zA-Z'-]*/g;
 
+function safeReadFile(path: string): string | undefined {
+  try {
+    return fs.readFileSync(path, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 function joinText(value: string | string[] | undefined): string {
   if (!value) return "";
   return Array.isArray(value) ? value.join("\n") : value;
@@ -145,9 +153,21 @@ export class DocsDatabase {
   private readonly byKeyword = new Map<string, DocEntry[]>();
   private readonly compiledPatternCache = new Map<string, CompiledPattern[]>();
 
-  constructor(raw: RawDocsFile) {
-    this.sourceVersion = raw.source?.version ?? "unknown";
-    this.entries = normalizeDocsFile(raw);
+  /**
+   * Accepts one or more raw sources - normally the core Skript docs plus
+   * any addon docs.json files (e.g. from SkBee, Skript-GUI, etc., each
+   * generated via Skript's own `/sk gen-docs` on a server with that addon
+   * installed - same schema, since the generator captures every installed
+   * addon's syntax, not just vanilla Skript's). All entries are merged into
+   * one combined index, so lookup/pattern-matching spans every source.
+   * `sourceVersion` reflects only the *first* (core) source, since that's
+   * what drives version-comparison - addons don't have their own notion of
+   * "Skript version".
+   */
+  constructor(raw: RawDocsFile | RawDocsFile[]) {
+    const sources = Array.isArray(raw) ? raw : [raw];
+    this.sourceVersion = sources[0]?.source?.version ?? "unknown";
+    this.entries = sources.flatMap((source) => normalizeDocsFile(source));
 
     for (const entry of this.entries) {
       this.byId.set(entry.id, entry);
@@ -183,16 +203,40 @@ export class DocsDatabase {
     return undefined;
   }
 
+  /**
+   * Loads a primary (core Skript) docs.json plus any number of additional
+   * files (addon docs.json) to merge in, given as absolute file paths. A
+   * source that fails to read/parse is skipped rather than failing the
+   * whole load - the primary source must succeed, additional ones are
+   * best-effort.
+   */
+  static loadMultiple(primaryPath: string, additionalPaths: string[] = []): DocsDatabase | undefined {
+    const primaryText = safeReadFile(primaryPath);
+    if (!primaryText) return undefined;
+
+    const texts = [primaryText, ...additionalPaths.map(safeReadFile).filter((t): t is string => t !== undefined)];
+    return DocsDatabase.fromMultipleTexts(texts);
+  }
+
   /** Parses+normalizes a docs.json's raw text. Returns undefined for invalid JSON or an unsupported (legacy) schema. */
   static fromText(text: string): DocsDatabase | undefined {
-    try {
-      const parsed = JSON.parse(text) as UnknownDocsFile;
-      const raw = adaptToRawDocsFile(parsed);
-      if (!raw) return undefined;
-      return new DocsDatabase(raw);
-    } catch {
-      return undefined;
+    return DocsDatabase.fromMultipleTexts([text]);
+  }
+
+  /** Like `fromText`, but merges several sources; a source that fails to parse is skipped rather than failing the whole load. */
+  static fromMultipleTexts(texts: string[]): DocsDatabase | undefined {
+    const raws: RawDocsFile[] = [];
+    for (const text of texts) {
+      try {
+        const parsed = JSON.parse(text) as UnknownDocsFile;
+        const raw = adaptToRawDocsFile(parsed);
+        if (raw) raws.push(raw);
+      } catch {
+        // skip this source, keep going with the rest
+      }
     }
+    if (raws.length === 0) return undefined;
+    return new DocsDatabase(raws);
   }
 
   getById(id: string): DocEntry | undefined {
