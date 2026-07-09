@@ -2,7 +2,7 @@
   "name": "r4tsk",
   "displayName": "r4tsk - Skript Language Support",
   "description": "Skript language support: syntax highlighting, hover call-signature preview, autocomplete, diagnostics, go-to-definition and a bundled dark theme.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "r4tsk",
   "license": "UNLICENSED",
   "repository": {

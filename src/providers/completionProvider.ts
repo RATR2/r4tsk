@@ -57,7 +57,7 @@ export class SkriptCompletionProvider implements vscode.CompletionItemProvider {
       }
     }
 
-    for (const fn of this.index.getAllFunctions()) {
+    for (const fn of this.index.getVisibleFunctions(document.uri)) {
       const item = new vscode.CompletionItem(fn.name, vscode.CompletionItemKind.Function);
       item.detail = fn.signatureLabel;
       item.documentation = renderDocMarkdown(fn.doc, fn.params);

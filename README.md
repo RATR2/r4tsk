@@ -46,6 +46,7 @@ Skript language support for VS Code / VSCodium.
   This matches any comment line that (after the `#`) consists only of `@`/`!`/`:` characters and whitespace, so normal prose comments are left alone.
   - r4tsk also ships a **built-in signature banner** (`src/data/signatureBanner.ts`) - a fixed, non-configurable set of patterns that always renders the author's own ASCII-art header comment in its matching gradient, regardless of the viewer's own `r4tsk.customPatterns` settings. So anyone who opens a script bearing that banner, using this build of the extension, sees it colored the same way it looks in-game. It's added on top of (not instead of) whatever the user configures themselves.
 - **Autocomplete** for user-defined functions (workspace-wide), a curated core of vanilla Skript events/effects/conditions/types, and already-used variable names.
+- **`local function` support** - recognized as its own header (not treated as a variant of `function`), and its scoping is enforced correctly everywhere: calls only resolve to it from within its own script, autocomplete only offers it there too, and the "duplicate function" diagnostic won't flag two unrelated local functions in different files that happen to share a name (only a real same-file collision, or two *global* functions colliding across files, are actual conflicts).
 - **Diagnostics**: undefined function calls (with cross-version suggestions), argument count mismatches, duplicate function definitions, stale `@param` doc tags, `@return` documented on a function with no declared return type, and deprecated syntax usage (see below).
 - **Go to definition** / **find references** for function calls.
 - **Signature help** (parameter hints while typing a call, including per-parameter doc text).
@@ -97,7 +98,7 @@ npm run package       # produce a .vsix via vsce
 ```
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-1.0.0.vsix` via the "Install from VSIX" command.
+built `r4tsk-1.0.1.vsix` via the "Install from VSIX" command.
 
 ## License
 
