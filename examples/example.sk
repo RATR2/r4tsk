@@ -1,0 +1,168 @@
+# r4tsk feature showcase
+#
+# A single script touching every feature r4tsk adds on top of plain Skript
+# syntax highlighting. Open this file, hover things, and try:
+#   - Ctrl+T for workspace symbols, F12 for go-to-definition
+#   - hovering a function call, an effect/condition/event, or a color code
+#   - the color swatch next to any <#rrggbb> tag below
+#
+# A few settings-driven features aren't visible as code at all, so they're
+# just noted here instead:
+#   - r4tsk.customPatterns / "r4tsk: Configure Custom Colored Patterns" - color
+#     any regex pattern you define, e.g. an ASCII-art banner comment block.
+#   - r4tsk.additionalDocsPaths / "r4tsk: Manage Addon Docs Files..." - merge
+#     in an addon's docs.json (SkBee, Skript-GUI, ...) for hover/diagnostics.
+#   - r4tsk.docsPath / "r4tsk: Set Core Docs File..." - use your own core
+#     docs.json instead of the bundled/auto-downloaded one.
+#   - Skript version tracking (status bar item, bottom right) and
+#     auto-downloading the matching docs.json - both apply globally, not
+#     to any specific line of code.
+#   - "You might be thinking of X from Skript Y" - cross-version hover
+#     suggestions when something isn't found in your configured version.
+
+# --- JavaDoc-style doc comments -------------------------------------------
+# @param/@return/@deprecated are parsed structurally and shown in hover,
+# autocomplete and signature help. @param/@return/@deprecated tags are
+# colored (not just the surrounding text) - see r4tsk.annotationColors.*.
+
+# Gives a welcome kit to a player and announces it in chat.
+#
+# @param p the player to give the kit to
+# @param announce whether to broadcast a message about it
+# @param kit the item type that represents the kit
+# @return whether the kit was successfully given
+function giveWelcomeKit(p: player, announce: boolean, kit: itemtype) :: boolean:
+	give kit to p
+	if announce is true:
+		broadcast "<#f18d8d>%p% &ljust joined and got a kit!"
+	return true
+
+# Calculates a player's payout. Kept only as an example of a deprecated
+# function - hover it to see the "⚠️ Deprecated" warning.
+#
+# @param p the player to calculate the payout for
+# @param minutesPlayed how many minutes they've played this session
+# @return the payout amount in coins
+# @deprecated use economy.calculatePayout() from the new economy addon instead
+function calculatePayout(p: player, minutesPlayed: number) :: number:
+	set {_base} to minutesPlayed * 2
+	if minutesPlayed > 60:
+		add 50 to {_base}
+	return {_base}
+
+# `local function` - only callable from within this script. Calling it from
+# another .sk file wouldn't resolve (correctly), and it can share its name
+# with an unrelated local function elsewhere without r4tsk flagging a
+# "duplicate function" diagnostic - only a real same-file collision, or two
+# *global* functions colliding across files, are actual conflicts.
+#
+# @param p the player to greet
+local function greetLocally(p: player):
+	send "<#7fd6ff>Welcome, %p%!" to p
+
+# --- Diagnostics: a deliberately broken doc comment ------------------------
+# No `:: type` return declaration on this one, but the @return tag below
+# still claims one - r4tsk flags that mismatch as a diagnostic. This is the
+# only intentionally "broken" thing in this file.
+#
+# TODO hook this up to the real logging addon once it's released.
+# WARN this still uses the placeholder log format below.
+# ! do not remove this until the new logging system ships.
+# important: "!" and "important" both trigger the same red highlighting.
+#
+# @param p the player to log a message for
+# @return whether logging succeeded
+function logNothing(p: player):
+	send "logged" to p
+
+# --- Commands ---------------------------------------------------------------
+command /kit:
+	permission: r4tsk.example.kit
+	description: Gives you the example welcome kit.
+	usage: /kit
+	trigger:
+		giveWelcomeKit(player, true, diamond sword)
+
+# --- Events ------------------------------------------------------------------
+on join:
+	# Hover "giveWelcomeKit"/"greetLocally"/"logNothing" to see each parsed
+	# doc comment: description, per-parameter text, return value, and the
+	# deprecation warning where present.
+	set {_gotKit} to giveWelcomeKit(player, true, diamond sword)
+	greetLocally(player)
+	logNothing(player)
+
+on explode:
+	# A real event since Skript 1.0 - hover "explode" above to confirm it
+	# resolves correctly (it's built from adjacent choice groups internally,
+	# `explo(d(e|ing)|sion)`, which r4tsk expands to index "explode"/
+	# "exploding"/"explosion" as real words, not meaningless fragments).
+	cancel the event
+
+# --- Real pattern-matching hover / diagnostics --------------------------
+# Hover any of these lines: r4tsk identifies exactly which effect/condition/
+# expression governs it (not just that a keyword coincidentally appears),
+# and shows which argument text filled which %placeholder%.
+on script load:
+	set {_inventory} to inventory with 3 rows
+	set {_item} to diamond sword
+	add {_item} to {_inventory}
+
+	if {_inventory} contains {_item}:
+		broadcast "&aFound it!"
+
+	loop 3 times:
+		wait 1 tick
+
+	loop {_inventory}'s items:
+		if loop-value is not air:
+			send "%loop-value%" to console
+
+	teleport player to {_inventory}'s location
+	kill player's target
+
+# --- Minecraft chat colors and hex tags -------------------------------------
+# Legacy &-codes and <#rrggbb> hex tags both render live using their actual
+# in-game color (not a generic "this is a string" color), following real
+# chat rendering rules (a color code resets formatting, format codes stack).
+# Hover/click the swatch next to the hex tag below for the color picker.
+on script load:
+	broadcast "&c&lWarning: &r&7this text is grey and unformatted"
+	broadcast "<#ff7ff9>gradient-ready pink <#25dee4>and cyan in one message"
+
+# --- Variables ---------------------------------------------------------------
+on script load:
+	set {_local} to "scoped to this trigger only"
+	set {example::global} to "shared across the whole server"
+	set {example::list::1} to "first"
+	set {example::list::2} to "second"
+	loop {example::list::*}:
+		send "%loop-index%: %loop-value%" to console
+
+# --- Deprecated-syntax warning (intentional) ---------------------------------
+# `'s nick name`/`'s custom name` have no replacement property in Skript
+# 2.13+, so this line still correctly warns - uncomment it to see the
+# diagnostic. Compare with `'s name`/`'s display name`, which *are* covered
+# by non-deprecated properties now and correctly stay silent.
+on script load:
+	# set the player's nick name to "Nicky"
+	set the player's display name to "<#ffd21c>%player's name%"
+
+# --- Java interop (e.g. Skript-Reflect) doesn't get flagged -----------------
+# Dot-chain method calls like `SomeClass.method(...)` or `{_x}.isEmpty()`
+# aren't Skript function calls, so r4tsk doesn't flag them as undefined
+# functions the way it would a bare `identifier(...)`. Left commented since
+# it depends on an addon's actual Java classes, not anything bundled here.
+#
+# import:
+# 	kr.toxicity.model.api.BetterModel
+# on script load:
+# 	set {_opt} to BetterModel.model("example")
+# 	if {_opt}.isEmpty() is true:
+# 		stop
+
+# --- Diagnostics playground (commented out - uncomment to see each one) -----
+# on script load:
+# 	thisFunctionDoesNotExist(player)               # Undefined function 'thisFunctionDoesNotExist'.
+# 	giveWelcomeKit(player)                          # Missing required argument 'announce: boolean'.
+# 	giveWelcomeKit(player, true, diamond sword, 5)  # Too many arguments: 'giveWelcomeKit' takes 3, got 4.

@@ -104,6 +104,10 @@ npm run package       # produce a .vsix via vsce
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
 built `r4tsk-1.0.3.vsix` via the "Install from VSIX" command.
 
+Open [`examples/example.sk`](examples/example.sk) for a single script touching every feature above
+(doc comments, annotations, hover, `local function` scoping, color codes, diagnostics, and more).
+[`examples/doc-comments-example.sk`](examples/doc-comments-example.sk) is a smaller, focused example of just the doc-comment system.
+
 ## License
 
 Copyright © 2026 RATR2. All rights reserved. See [LICENSE](LICENSE).
