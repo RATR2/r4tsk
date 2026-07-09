@@ -82,9 +82,19 @@ export class DiagnosticsManager {
     }
 
     for (const fn of parsed.functions) {
+      // A `local function` only collides with something of the same name
+      // declared in the *same* file - a same-named local (or even global)
+      // function in another script is a separate, unrelated function, not a
+      // conflict. Cross-file collisions only matter when both are global,
+      // since that's the only case where they'd actually share a namespace.
       const duplicates = this.index
-        .findFunctions(fn.name)
-        .filter((f) => f.uri.toString() !== uri.toString() || f.nameRange.start.line !== fn.nameRange.start.line);
+        .findFunctions(fn.name, uri)
+        .filter((f) => {
+          const isSelf = f.uri.toString() === uri.toString() && f.nameRange.start.line === fn.nameRange.start.line;
+          if (isSelf) return false;
+          const sameFile = f.uri.toString() === uri.toString();
+          return sameFile || (!fn.isLocal && !f.isLocal);
+        });
       if (duplicates.length > 0) {
         const otherFiles = [...new Set(duplicates.map((d) => vscode.workspace.asRelativePath(d.uri)))];
         diagnostics.push(

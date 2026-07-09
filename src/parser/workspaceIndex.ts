@@ -46,21 +46,28 @@ export class WorkspaceIndex {
     return Array.from(this.docs.values());
   }
 
-  /** All functions matching `name`, across the whole workspace. */
-  findFunctions(name: string): FunctionInfo[] {
+  /**
+   * All functions matching `name` that are visible from `fromUri` - a
+   * `local function` is only visible within its own file, so it's excluded
+   * unless `fromUri` is that same file. Without a `fromUri` (no calling
+   * context), locals are excluded entirely, since none can be assumed visible.
+   */
+  findFunctions(name: string, fromUri?: vscode.Uri): FunctionInfo[] {
     const lower = name.toLowerCase();
     const results: FunctionInfo[] = [];
     for (const doc of this.docs.values()) {
       for (const fn of doc.functions) {
-        if (fn.name.toLowerCase() === lower) results.push(fn);
+        if (fn.name.toLowerCase() !== lower) continue;
+        if (fn.isLocal && fn.uri.toString() !== fromUri?.toString()) continue;
+        results.push(fn);
       }
     }
     return results;
   }
 
-  /** First matching function, preferring the given document if it defines one. */
+  /** First matching function visible from `preferUri`, preferring that same document if it defines one. */
   resolveFunction(name: string, preferUri?: vscode.Uri): FunctionInfo | undefined {
-    const matches = this.findFunctions(name);
+    const matches = this.findFunctions(name, preferUri);
     if (matches.length === 0) return undefined;
     if (preferUri) {
       const local = matches.find((m) => m.uri.toString() === preferUri.toString());
@@ -73,6 +80,11 @@ export class WorkspaceIndex {
     const all: FunctionInfo[] = [];
     for (const doc of this.docs.values()) all.push(...doc.functions);
     return all;
+  }
+
+  /** All functions visible from `fromUri` - every global function, plus `fromUri`'s own local ones. For workspace-wide autocomplete, where offering another file's local function would suggest something uncallable. */
+  getVisibleFunctions(fromUri: vscode.Uri): FunctionInfo[] {
+    return this.getAllFunctions().filter((fn) => !fn.isLocal || fn.uri.toString() === fromUri.toString());
   }
 
   dispose(): void {

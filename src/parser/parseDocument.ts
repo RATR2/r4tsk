@@ -12,6 +12,8 @@ import {
 } from "./types";
 
 const FUNCTION_HEADER = /^(\s*)function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
+/** `local function` - same shape as a regular function, but only callable from within its own script (see FunctionInfo.isLocal). Kept as its own pattern rather than folding an optional "local" into FUNCTION_HEADER above. */
+const LOCAL_FUNCTION_HEADER = /^(\s*)local\s+function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
 const COMMAND_HEADER = /^(\s*)command\s+(\/[a-zA-Z0-9_]+)/;
 const EVENT_HEADER = /^(\s*)on\s+([^:]+?)\s*:\s*$/;
 const COMMAND_SUBKEY = /^(\s*)(permission|description|usage|aliases|permission message|cooldown message):\s*(.*)$/i;
@@ -38,9 +40,10 @@ export function parseDocument(document: vscode.TextDocument): ParsedDocument {
   for (let lineNo = 0; lineNo < lineCount; lineNo++) {
     const masked = maskedLines[lineNo];
 
-    const fnMatch = FUNCTION_HEADER.exec(masked);
+    const localFnMatch = LOCAL_FUNCTION_HEADER.exec(masked);
+    const fnMatch = localFnMatch ?? FUNCTION_HEADER.exec(masked);
     if (fnMatch) {
-      const info = parseFunctionHeader(document, lineNo, rawLines, maskedLines, fnMatch);
+      const info = parseFunctionHeader(document, lineNo, rawLines, maskedLines, fnMatch, localFnMatch !== null);
       if (info) {
         functions.push(info);
         definitionLines.add(lineNo);
@@ -115,7 +118,8 @@ function parseFunctionHeader(
   lineNo: number,
   rawLines: string[],
   maskedLines: string[],
-  fnMatch: RegExpExecArray
+  fnMatch: RegExpExecArray,
+  isLocal: boolean
 ): FunctionInfo | undefined {
   const masked = maskedLines[lineNo];
   const raw = rawLines[lineNo];
@@ -162,6 +166,7 @@ function parseFunctionHeader(
     nameRange: new vscode.Range(lineNo, nameStart, lineNo, nameStart + name.length),
     headerRange: new vscode.Range(lineNo, 0, lineNo, raw.length),
     signatureLabel,
+    isLocal,
   };
 }
 

@@ -33,6 +33,8 @@ export interface FunctionInfo {
   nameRange: vscode.Range;
   headerRange: vscode.Range;
   signatureLabel: string;
+  /** Declared with `local function` - only callable from within its own script, and doesn't collide with same-named functions (local or global) in other files. */
+  isLocal: boolean;
 }
 
 export interface CommandInfo {
