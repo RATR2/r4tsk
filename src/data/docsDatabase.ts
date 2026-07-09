@@ -1,6 +1,16 @@
 import * as fs from "fs";
 import { DocCategory, DocEntry, DocsRef, RawDocsFile, RawPatternedEntry, UnknownDocsFile } from "./docsTypes";
 import { adaptToRawDocsFile } from "./docsSchemaAdapter";
+import { CompiledPattern, compilePattern } from "../parser/patternCompiler";
+
+export interface LineMatch {
+  entry: DocEntry;
+  pattern: CompiledPattern;
+  /** Trimmed captured text per `%placeholder%`, in pattern order; undefined where an unmatched choice-alternative left the group empty. */
+  values: (string | undefined)[];
+}
+
+const CODE_WORD = /[a-zA-Z][a-zA-Z'-]*/g;
 
 function joinText(value: string | string[] | undefined): string {
   if (!value) return "";
@@ -79,6 +89,24 @@ export function extractKeywords(pattern: string): string[] {
   return [...new Set(words)].filter((w) => w.length > 1);
 }
 
+/**
+ * Skript patterns commonly write an optional suffix directly attached to a
+ * word, e.g. `contain[s]`, `remove[d]` - which the plain bracket-stripping
+ * in `extractKeywords` splits into two unrelated tokens ("contain", "s"),
+ * losing the fact that "contains" (the concatenated surface form) is also
+ * a valid literal reading. Returns those concatenated forms so they can be
+ * added to the keyword index too.
+ */
+function extractAttachedOptionalForms(pattern: string): string[] {
+  const forms: string[] = [];
+  const re = /([a-zA-Z']+)\[([a-zA-Z']*)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(pattern))) {
+    forms.push((m[1] + m[2]).toLowerCase());
+  }
+  return forms;
+}
+
 /** Common words that would otherwise match almost every entry and drown out real lookups. */
 const STOPWORDS = new Set([
   "the", "a", "an", "of", "to", "in", "on", "is", "are", "was", "were", "with", "for",
@@ -115,6 +143,7 @@ export class DocsDatabase {
   private readonly byId = new Map<string, DocEntry>();
   private readonly byNameLower = new Map<string, DocEntry[]>();
   private readonly byKeyword = new Map<string, DocEntry[]>();
+  private readonly compiledPatternCache = new Map<string, CompiledPattern[]>();
 
   constructor(raw: RawDocsFile) {
     this.sourceVersion = raw.source?.version ?? "unknown";
@@ -128,7 +157,10 @@ export class DocsDatabase {
       this.byNameLower.get(nameKey)!.push(entry);
 
       const keywords = new Set<string>();
-      for (const p of entry.patterns) for (const k of extractKeywords(p)) keywords.add(k);
+      for (const p of entry.patterns) {
+        for (const k of extractKeywords(p)) keywords.add(k);
+        for (const k of extractAttachedOptionalForms(p)) keywords.add(k);
+      }
       for (const keyword of keywords) {
         if (STOPWORDS.has(keyword)) continue;
         if (!this.byKeyword.has(keyword)) this.byKeyword.set(keyword, []);
@@ -223,5 +255,73 @@ export class DocsDatabase {
       (lower && entry.patterns.find((p) => extractKeywords(p).includes(lower))) ??
       entry.patterns[0];
     return simplifyPattern(best, entry.category);
+  }
+
+  private getCompiledPatterns(entry: DocEntry): CompiledPattern[] {
+    let compiled = this.compiledPatternCache.get(entry.id);
+    if (!compiled) {
+      compiled = entry.patterns.map((p) => {
+        try {
+          return compilePattern(p);
+        } catch {
+          return undefined;
+        }
+      }).filter((c): c is CompiledPattern => c !== undefined);
+      this.compiledPatternCache.set(entry.id, compiled);
+    }
+    return compiled;
+  }
+
+  /**
+   * Tries to match a full line of *code* (not a pattern) against real
+   * Skript syntax patterns, telling us exactly which effect/condition/
+   * expression governs the line and what text fills each `%placeholder%` -
+   * unlike `lookupWord`, which only checks whether a keyword appears
+   * anywhere on the line. Candidates are narrowed via the keyword index
+   * first so we're not compiling/testing all ~1200 patterns per line.
+   */
+  matchLine(line: string): LineMatch | undefined {
+    let trimmed = line.trim();
+    // Control-flow keywords ("if", "else if", "while", "unless") and a
+    // trailing section colon aren't part of the condition/effect's own
+    // pattern - they're Skript's own block-structure syntax wrapping it.
+    trimmed = trimmed.replace(/^(else\s+if|if|while|unless)\s+/i, "");
+    trimmed = trimmed.replace(/:\s*$/, "");
+    if (!trimmed) return undefined;
+
+    const candidateIds = new Set<string>();
+    CODE_WORD.lastIndex = 0;
+    let wordMatch: RegExpExecArray | null;
+    while ((wordMatch = CODE_WORD.exec(trimmed))) {
+      const word = wordMatch[0].toLowerCase();
+      if (STOPWORDS.has(word)) continue;
+      for (const entry of this.byKeyword.get(word) ?? []) candidateIds.add(entry.id);
+      for (const entry of this.byNameLower.get(word) ?? []) candidateIds.add(entry.id);
+    }
+
+    let best: LineMatch | undefined;
+    let bestSpecificity = -1;
+
+    for (const id of candidateIds) {
+      const entry = this.byId.get(id);
+      if (!entry) continue;
+
+      for (const pattern of this.getCompiledPatterns(entry)) {
+        const match = pattern.regex.exec(trimmed);
+        if (!match) continue;
+
+        const specificity = pattern.requiredLiteralChars;
+        if (specificity <= bestSpecificity) continue;
+
+        bestSpecificity = specificity;
+        best = {
+          entry,
+          pattern,
+          values: match.slice(1).map((v) => (v === undefined ? undefined : v.trim())),
+        };
+      }
+    }
+
+    return best;
   }
 }

@@ -50,7 +50,8 @@ Skript language support for VS Code / VSCodium.
 - **Go to definition** / **find references** for function calls.
 - **Signature help** (parameter hints while typing a call, including per-parameter doc text).
 - **Document & workspace symbols** (outline view, `Ctrl+T` search) for functions, commands and events.
-- **Real docs lookup, from the Skript wiki's own data** - `data/docs.json` is a bundled snapshot from [SkriptLang/skript-docs](https://github.com/SkriptLang/skript-docs) (1200+ real conditions/effects/expressions/events/types/functions/structures/sections, each with description, `since` version, deprecation status and examples - not just our small curated list). Hover over any recognized keyword (e.g. `teleport`, `broadcast`, `boolean`, `floor`) to see its real doc entry. This is word-based lookup (not a full Skript pattern-matching engine), so results are a best-effort match, not a syntax-perfect parse.
+- **Real docs lookup, from the Skript wiki's own data - with an actual pattern-matching engine, not just keyword guessing.** `data/docs.json` is a bundled snapshot from [SkriptLang/skript-docs](https://github.com/SkriptLang/skript-docs) (1200+ real conditions/effects/expressions/events/types/functions/structures/sections, each with description, `since` version, deprecation status and examples). `src/parser/patternCompiler.ts` compiles Skript's real syntax pattern language - `[optional]`, `(a|b|c)`, `%type%`/`%-type%`, `<regex>` - into JS `RegExp`s, so hovering a *line* of code identifies exactly which syntax element governs it and which argument text fills which `%placeholder%`, instead of just noticing a keyword happens to appear somewhere on the line. This fixed real bugs the old word-based approach had (e.g. `contains` on `{_inv} contains {_item}` used to resolve to an unrelated entry; `broadcast "hello world"` picked up "world" from inside the string and matched the wrong expression entirely). Word-based lookup (`lookupWord`) is kept as a fallback for hovering a bare identifier with no full-line match.
+  - Known limitation: when a pattern has two *wildcard* alternatives back-to-back with no literal anchor between them (e.g. Teleport's `%entities% (to|%direction%) %location%`), regex backtracking can't always tell which one is semantically intended and may attribute argument text to the wrong slot - it still correctly identifies *which* effect/condition/expression matched, just not always the precise per-argument breakdown. A fully correct fix needs real type-aware parsing, which is out of scope.
 - **Auto-downloads the docs.json matching your Skript version.** skript-docs keeps an archive of every released version at `docs/archives/<version>/docs.json`. Once you tell r4tsk your Skript version (see below), it resolves the closest matching archive, downloads it in the background, and caches it under VS Code's global storage - no manual download needed. Falls back to the bundled snapshot if offline or the exact version isn't available.
   - Covers three generations of the schema: the modern format (Skript 2.13.0+), an older intermediate format (2.10.0-2.12.x, auto-adapted), and gracefully falls back to the nearest supported version for the legacy format (Skript 2.6.4-2.9.5, and 2.10.2) - those older archives use singular-string fields and are sometimes not even valid JSON, so they aren't parsed.
   - Prefer to manage this yourself? Point `r4tsk.docsPath` at your own downloaded/generated `docs.json` (e.g. built from your exact server + addon jars via Skript's `/sk gen-docs` command) and auto-download is skipped entirely. Set `r4tsk.autoDownloadDocs` to `false` to just stay on the bundled snapshot without network access.
@@ -64,11 +65,14 @@ Skript language support for VS Code / VSCodium.
 
 The built-in syntax database (`src/data/skriptSyntax.ts`) is a small curated core used for
 completion snippets; the real depth comes from the (auto-downloaded, version-matched)
-`docs.json` described above. The word-based docs lookup is a heuristic (exact name match, then
-a keyword index built by stripping Skript's pattern syntax), not a full pattern-matching engine,
-so occasionally an ambiguous word (like "set", which is genuinely used in more than one effect's
-phrasing) may resolve to a plausible-but-not-exact entry. Autocomplete still uses the small
-curated list rather than the full docs database - a good next step if it's ever revisited.
+`docs.json` and the pattern-matching engine described above. The compiler handles the vast
+majority of real patterns correctly (validated against dozens of real conditions/effects/
+expressions), but it's still regex-based rather than a true recursive-descent parser with type
+inference, so a handful of patterns with ambiguous wildcard-vs-wildcard choices, or multiple
+generic same-shaped expressions competing for the same phrasing (e.g. several different "name
+of X" expressions across different types), can occasionally resolve to a plausible-but-not-exact
+entry. Autocomplete still uses the small curated list rather than the full docs database/pattern
+engine - a good next step if it's ever revisited.
 
 ## Development
 
