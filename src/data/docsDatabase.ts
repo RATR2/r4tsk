@@ -12,6 +12,31 @@ export interface LineMatch {
 
 const CODE_WORD = /[a-zA-Z][a-zA-Z'-]*/g;
 
+/** Per-category page on docs.skriptlang.org - confirmed by checking that each page anchors entries by their exact `id` (e.g. `effects.html#EffTeleport`, `classes.html#boolean`). Properties/experiments have no dedicated page, so they're omitted. */
+const DOCS_SITE_PAGE: Partial<Record<DocCategory, string>> = {
+  condition: "conditions.html",
+  effect: "effects.html",
+  expression: "expressions.html",
+  event: "events.html",
+  structure: "structures.html",
+  section: "sections.html",
+  type: "classes.html",
+  function: "functions.html",
+};
+
+/**
+ * A link to the entry's page on the official docs site, if that category
+ * has one. Note this always points at whatever Skript version the live
+ * site currently documents - not necessarily the version `docs.json` this
+ * entry came from - so it's a "see the full picture" link, not a guarantee
+ * of an exact version match.
+ */
+export function docsSiteUrl(entry: DocEntry): string | undefined {
+  const page = DOCS_SITE_PAGE[entry.category];
+  if (!page) return undefined;
+  return `https://docs.skriptlang.org/${page}#${entry.id}`;
+}
+
 function safeReadFile(path: string): string | undefined {
   try {
     return fs.readFileSync(path, "utf8");

@@ -4,7 +4,7 @@ import { parseDocument } from "../parser/parseDocument";
 import { FunctionInfo } from "../parser/types";
 import { findBuiltinFunction, findBuiltinType } from "../data/skriptSyntax";
 import { renderDocMarkdown } from "../utils/docFormat";
-import { DocsDatabase, LineMatch } from "../data/docsDatabase";
+import { DocsDatabase, LineMatch, docsSiteUrl } from "../data/docsDatabase";
 import { DocEntry } from "../data/docsTypes";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
@@ -132,7 +132,7 @@ function buildDocsEntryHover(
     md.appendCodeblock(entry.examples[0].trimEnd(), "skript");
   }
 
-  md.appendMarkdown(`\n*From the Skript docs database (${docs.sourceVersion})*`);
+  appendDocsFooter(md, entry, docs);
 
   return new vscode.Hover(md, range);
 }
@@ -178,9 +178,18 @@ function buildLineMatchHover(lineMatch: LineMatch, docs: DocsDatabase, range: vs
     md.appendCodeblock(entry.examples[0].trimEnd(), "skript");
   }
 
-  md.appendMarkdown(`\n*From the Skript docs database (${docs.sourceVersion})*`);
+  appendDocsFooter(md, entry, docs);
 
   return new vscode.Hover(md, range);
+}
+
+/** Source/version footer, plus a link to the entry's page on the official docs site (more examples, full description, related syntax) when one exists for its category. */
+function appendDocsFooter(md: vscode.MarkdownString, entry: DocEntry, docs: DocsDatabase): void {
+  const siteUrl = docsSiteUrl(entry);
+  if (siteUrl) {
+    md.appendMarkdown(`\n[📖 Full docs & more examples](${siteUrl})`);
+  }
+  md.appendMarkdown(`\n\n*From the Skript docs database (${docs.sourceVersion})*`);
 }
 
 function buildCallHover(
