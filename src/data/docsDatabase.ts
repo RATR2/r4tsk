@@ -26,6 +26,21 @@ const DOCS_SITE_PAGE: Partial<Record<DocCategory, string>> = {
 };
 
 /**
+ * Events anchor by a slug of their *name* on the site, not their raw `id` -
+ * unlike other categories, many distinct events share one generic backing
+ * class (e.g. over a hundred use "SimpleEvent"), so the id can't double as
+ * a per-entry anchor there. Confirmed against the real site: "On Explode"
+ * -> "#explode", "On Firework Explode" -> "#firework_explode".
+ */
+function eventSlug(name: string): string {
+  return name
+    .replace(/^on\s+/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+/**
  * A link to the entry's page on the official docs site, if that category
  * has one. Note this always points at whatever Skript version the live
  * site currently documents - not necessarily the version `docs.json` this
@@ -35,7 +50,8 @@ const DOCS_SITE_PAGE: Partial<Record<DocCategory, string>> = {
 export function docsSiteUrl(entry: DocEntry): string | undefined {
   const page = DOCS_SITE_PAGE[entry.category];
   if (!page) return undefined;
-  return `https://docs.skriptlang.org/${page}#${entry.id}`;
+  const anchor = entry.category === "event" ? eventSlug(entry.name) : entry.id;
+  return `https://docs.skriptlang.org/${page}#${anchor}`;
 }
 
 function safeReadFile(path: string): string | undefined {
@@ -60,6 +76,7 @@ function normalizeCategory(raw: RawPatternedEntry, category: DocCategory): DocEn
   const patterns = raw.patterns ?? (raw.pattern ? [raw.pattern] : []);
   return {
     id: raw.id,
+    uid: "", // assigned by DocsDatabase's constructor, once merged across all sources - raw.id isn't unique (see DocEntry.id)
     name: raw.name,
     category,
     since: joinSince(raw.since),
@@ -254,7 +271,7 @@ const CATEGORY_PRIORITY: DocCategory[] = [
 export class DocsDatabase {
   readonly sourceVersion: string;
   private readonly entries: DocEntry[];
-  private readonly byId = new Map<string, DocEntry>();
+  private readonly byUid = new Map<string, DocEntry>();
   private readonly byNameLower = new Map<string, DocEntry[]>();
   private readonly byKeyword = new Map<string, DocEntry[]>();
   private readonly compiledPatternCache = new Map<string, CompiledPattern[]>();
@@ -275,8 +292,16 @@ export class DocsDatabase {
     this.sourceVersion = sources[0]?.source?.version ?? "unknown";
     this.entries = sources.flatMap((source) => normalizeDocsFile(source));
 
+    // `raw.id` is the *underlying implementation class*, not a unique syntax
+    // identifier - e.g. over a hundred distinct Skript events all share the
+    // id "SimpleEvent". Assign our own globally-unique key up front so nothing
+    // downstream (candidate resolution, pattern caching) silently collides.
+    this.entries.forEach((entry, i) => {
+      entry.uid = `${entry.category}:${i}`;
+    });
+
     for (const entry of this.entries) {
-      this.byId.set(entry.id, entry);
+      this.byUid.set(entry.uid, entry);
 
       const nameKey = entry.name.toLowerCase();
       if (!this.byNameLower.has(nameKey)) this.byNameLower.set(nameKey, []);
@@ -346,10 +371,6 @@ export class DocsDatabase {
     return new DocsDatabase(raws);
   }
 
-  getById(id: string): DocEntry | undefined {
-    return this.byId.get(id);
-  }
-
   /** Whether some entry with this exact name (any category) exists and isn't deprecated. */
   hasNonDeprecatedEntryNamed(name: string): boolean {
     const matches = this.byNameLower.get(name.toLowerCase());
@@ -370,9 +391,6 @@ export class DocsDatabase {
 
     const exactName = this.byNameLower.get(lower);
     if (exactName && exactName.length > 0) return this.pickBest(exactName, lower);
-
-    const byId = this.byId.get(word);
-    if (byId) return byId;
 
     const byKeyword = this.byKeyword.get(lower);
     if (byKeyword && byKeyword.length > 0) return this.pickBest(byKeyword, lower);
@@ -409,7 +427,7 @@ export class DocsDatabase {
   }
 
   private getCompiledPatterns(entry: DocEntry): CompiledPattern[] {
-    let compiled = this.compiledPatternCache.get(entry.id);
+    let compiled = this.compiledPatternCache.get(entry.uid);
     if (!compiled) {
       compiled = entry.patterns.map((p) => {
         try {
@@ -418,7 +436,7 @@ export class DocsDatabase {
           return undefined;
         }
       }).filter((c): c is CompiledPattern => c !== undefined);
-      this.compiledPatternCache.set(entry.id, compiled);
+      this.compiledPatternCache.set(entry.uid, compiled);
     }
     return compiled;
   }
@@ -443,21 +461,21 @@ export class DocsDatabase {
     trimmed = trimmed.replace(/:\s*$/, "");
     if (!trimmed) return undefined;
 
-    const candidateIds = new Set<string>();
+    const candidateUids = new Set<string>();
     CODE_WORD.lastIndex = 0;
     let wordMatch: RegExpExecArray | null;
     while ((wordMatch = CODE_WORD.exec(trimmed))) {
       const word = wordMatch[0].toLowerCase();
       if (STOPWORDS.has(word)) continue;
-      for (const entry of this.byKeyword.get(word) ?? []) candidateIds.add(entry.id);
-      for (const entry of this.byNameLower.get(word) ?? []) candidateIds.add(entry.id);
+      for (const entry of this.byKeyword.get(word) ?? []) candidateUids.add(entry.uid);
+      for (const entry of this.byNameLower.get(word) ?? []) candidateUids.add(entry.uid);
     }
 
     let best: LineMatch | undefined;
     let bestSpecificity = -1;
 
-    for (const id of candidateIds) {
-      const entry = this.byId.get(id);
+    for (const uid of candidateUids) {
+      const entry = this.byUid.get(uid);
       if (!entry) continue;
       if (categoryFilter && !categoryFilter.includes(entry.category)) continue;
 
