@@ -69,6 +69,7 @@ Skript language support for VS Code / VSCodium.
   2. Run `/sk gen-docs` - this produces `plugins/Skript/docs/docs.json`, containing vanilla Skript's syntax *and* every installed addon's.
   3. Copy that file somewhere r4tsk can read it, then run **"r4tsk: Manage Addon Docs Files..."** from the Command Palette - it lists what's currently added (with a trash icon to remove any) and an "Add a docs.json file..." entry that opens a native file browser, so there's no need to hand-edit `r4tsk.additionalDocsPaths` as a raw settings array (you still can, if you prefer - it's the same underlying setting, an array so you can point at multiple files/addons separately if you'd rather keep them apart).
   4. It's merged into the same pattern-matching engine and lookup index as your core Skript docs - hover, diagnostics, and everything else described above work on addon syntax exactly the same as vanilla Skript's. Applies live, no reload needed.
+  - Two reliability fixes here: an invalid/unparseable `r4tsk.docsPath` file used to be silently masked whenever at least one addon file *did* parse (the merge would quietly succeed using only the addon's syntax, dropping vanilla Skript entirely, since nothing distinguished "the core file failed" from "everything's fine"); the core source is now validated on its own before merging, so a bad core file correctly falls back to the bundled docs instead. Separately, changing `r4tsk.additionalDocsPaths`/`r4tsk.docsPath` while `r4tsk.autoDownloadDocs` is off used to silently do nothing despite "applies live" - fixed by only routing through the auto-download path when auto-download is actually enabled.
   
   This also means "currently unknown" addons aren't a special case to add support for one at a time - any addon that installs cleanly into a Skript server and shows up in `/sk gen-docs`'s output is supported automatically once its docs.json is added this way.
 
@@ -98,7 +99,7 @@ npm run package       # produce a .vsix via vsce
 ```
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-1.0.1.vsix` via the "Install from VSIX" command.
+built `r4tsk-1.0.2.vsix` via the "Install from VSIX" command.
 
 ## License
 

@@ -346,6 +346,15 @@ export class DocsDatabase {
     const primaryText = safeReadFile(primaryPath);
     if (!primaryText) return undefined;
 
+    // The primary source must parse on its own - fromMultipleTexts skips
+    // whatever fails and keeps going with the rest, so if the primary is
+    // invalid/unsupported but an addon happens to parse fine, it would
+    // otherwise return an addon-only database. Callers treat a non-undefined
+    // result as "the custom core docs file loaded", so that would silently
+    // drop all of vanilla Skript's syntax instead of falling back to the
+    // bundled core docs like it's supposed to.
+    if (!DocsDatabase.fromMultipleTexts([primaryText])) return undefined;
+
     const texts = [primaryText, ...additionalPaths.map(safeReadFile).filter((t): t is string => t !== undefined)];
     return DocsDatabase.fromMultipleTexts(texts);
   }

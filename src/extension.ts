@@ -155,7 +155,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {
         const storedVersion = versionManager.getVersion();
-        if (storedVersion && !getCustomDocsPath()) {
+        const autoDownload = config().get<boolean>("autoDownloadDocs", true);
+        // applyVersion() is a no-op when auto-download is off (or a custom
+        // docsPath is set) - routing there in that case would silently drop
+        // the change instead of applying it live like the setting promises.
+        if (storedVersion && autoDownload && !getCustomDocsPath()) {
           void applyVersion(storedVersion);
         } else {
           const reloaded = establishDocsFromSettings();
