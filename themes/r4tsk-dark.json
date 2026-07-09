@@ -489,6 +489,47 @@
     {
       "scope": "keyword.tag.bang.skript",
       "settings": { "foreground": "#ff0000", "fontStyle": "bold" }
+    },
+    {
+      "comment": "Static fallback for the built-in signature banner (see src/data/signatureBanner.ts), so the gradient also shows up in the minimap - decorations (the live, theme-independent version used in the main editor) can't render into the minimap, only static grammar/theme scopes can.",
+      "scope": "constant.other.signature-banner.line1.skript",
+      "settings": { "foreground": "#FF7FF9", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line2.skript",
+      "settings": { "foreground": "#FE75F6", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line3.skript",
+      "settings": { "foreground": "#FE6BF3", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line4.skript",
+      "settings": { "foreground": "#FE61F0", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line5.skript",
+      "settings": { "foreground": "#FE57ED", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line6.skript",
+      "settings": { "foreground": "#FE4DEA", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line7.skript",
+      "settings": { "foreground": "#FD43E7", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line8.skript",
+      "settings": { "foreground": "#FD39E4", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line9.skript",
+      "settings": { "foreground": "#FD2FE1", "fontStyle": "bold" }
+    },
+    {
+      "scope": "constant.other.signature-banner.line10.skript",
+      "settings": { "foreground": "#FD25DE", "fontStyle": "bold" }
     }
   ],
   "semanticHighlighting": false

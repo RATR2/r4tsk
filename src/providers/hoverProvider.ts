@@ -4,7 +4,7 @@ import { parseDocument } from "../parser/parseDocument";
 import { FunctionInfo } from "../parser/types";
 import { findBuiltinFunction, findBuiltinType } from "../data/skriptSyntax";
 import { renderDocMarkdown } from "../utils/docFormat";
-import { DocsDatabase } from "../data/docsDatabase";
+import { DocsDatabase, LineMatch, docsSiteUrl } from "../data/docsDatabase";
 import { DocEntry } from "../data/docsTypes";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
@@ -34,11 +34,34 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
     const def = parsed.functions.find((f) => f.nameRange.contains(position));
     if (def) return buildDefinitionHover(def);
 
+    const docs = this.docs.current;
+
+    // Event headers ("on X:") get a category-restricted lookup: a word in
+    // the event phrase might coincidentally be the keyword of some
+    // unrelated effect/expression (e.g. "create" also being part of the
+    // "Lightning" effect's pattern), which would otherwise show up via the
+    // generic word-based fallback below and look like "on create:" was
+    // recognized as a real event when it isn't one.
+    const eventDef = parsed.events.find((ev) => ev.nameRange.contains(position));
+    if (eventDef) {
+      const eventMatch = docs?.matchLine(eventDef.name, ["event"]);
+      if (eventMatch) return buildLineMatchHover(eventMatch, docs!, eventDef.nameRange);
+      return buildUnrecognizedEventHover(eventDef.name, eventDef.nameRange);
+    }
+
+    if (docs) {
+      const lineText = document.lineAt(position.line).text;
+      const lineMatch = docs.matchLine(lineText);
+      if (lineMatch) {
+        const lineRange = new vscode.Range(position.line, 0, position.line, lineText.length);
+        return buildLineMatchHover(lineMatch, docs, lineRange);
+      }
+    }
+
     const wordRange = document.getWordRangeAtPosition(position);
     if (wordRange) {
       const word = document.getText(wordRange);
 
-      const docs = this.docs.current;
       const docEntry = docs?.lookupWord(word);
       if (docEntry) return buildDocsEntryHover(docEntry, word, docs!, wordRange);
 
@@ -58,6 +81,15 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
 
     return undefined;
   }
+}
+
+function buildUnrecognizedEventHover(eventName: string, range: vscode.Range): vscode.Hover {
+  const md = new vscode.MarkdownString();
+  md.appendMarkdown(
+    `⚠️ \`on ${eventName}\` doesn't match any known event in the active docs database.\n\n` +
+      `It may be misspelled, from an addon not currently loaded (see \`r4tsk.additionalDocsPaths\`), or just not a real event.`
+  );
+  return new vscode.Hover(md, range);
 }
 
 function buildElsewhereHover(
@@ -123,9 +155,64 @@ function buildDocsEntryHover(
     md.appendCodeblock(entry.examples[0].trimEnd(), "skript");
   }
 
-  md.appendMarkdown(`\n*From the Skript docs database (${docs.sourceVersion})*`);
+  appendDocsFooter(md, entry, docs);
 
   return new vscode.Hover(md, range);
+}
+
+/**
+ * Richer hover for a whole line that actually matched a real Skript syntax
+ * pattern (not just "some keyword happens to appear on this line") - shows
+ * which specific argument text filled each `%placeholder%` slot.
+ */
+function buildLineMatchHover(lineMatch: LineMatch, docs: DocsDatabase, range: vscode.Range): vscode.Hover {
+  const { entry, pattern, values } = lineMatch;
+  const md = new vscode.MarkdownString();
+
+  md.appendCodeblock(docs.displayPattern(entry) ?? entry.name, "skript");
+  md.appendMarkdown(`**${entry.name}** · ${CATEGORY_LABELS[entry.category]}`);
+  if (entry.since) md.appendMarkdown(` · since \`${entry.since}\``);
+  md.appendMarkdown("\n");
+
+  if (entry.deprecated) {
+    md.appendMarkdown("\n**⚠️ Deprecated**\n");
+  }
+
+  if (entry.description) {
+    md.appendMarkdown("\n" + entry.description + "\n");
+  }
+
+  const rows = pattern.placeholders
+    .map((placeholder, i) => ({ placeholder, value: values[i] }))
+    .filter((r) => r.value !== undefined);
+  if (rows.length > 0) {
+    md.appendMarkdown("\n| Type | Value |\n|---|---|\n");
+    for (const { placeholder, value } of rows) {
+      md.appendMarkdown(`| \`${placeholder.types.join("/")}\` | ${value} |\n`);
+    }
+  }
+
+  if (entry.returns) {
+    md.appendMarkdown(`\nReturns: \`${entry.returns.name || entry.returns.id}\`\n`);
+  }
+
+  if (entry.examples.length > 0) {
+    md.appendMarkdown("\n**Example:**");
+    md.appendCodeblock(entry.examples[0].trimEnd(), "skript");
+  }
+
+  appendDocsFooter(md, entry, docs);
+
+  return new vscode.Hover(md, range);
+}
+
+/** Source/version footer, plus a link to the entry's page on the official docs site (more examples, full description, related syntax) when one exists for its category. */
+function appendDocsFooter(md: vscode.MarkdownString, entry: DocEntry, docs: DocsDatabase): void {
+  const siteUrl = docsSiteUrl(entry);
+  if (siteUrl) {
+    md.appendMarkdown(`\n[📖 Full docs & more examples](${siteUrl})`);
+  }
+  md.appendMarkdown(`\n\n*From the Skript docs database (${docs.sourceVersion})*`);
 }
 
 function buildCallHover(

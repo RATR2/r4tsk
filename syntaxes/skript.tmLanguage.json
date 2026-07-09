@@ -3,6 +3,7 @@
   "name": "Skript",
   "scopeName": "source.skript",
   "patterns": [
+    { "include": "#signature-banner" },
     { "include": "#comments" },
     { "include": "#function-definition" },
     { "include": "#command-definition" },
@@ -19,6 +20,20 @@
     { "include": "#colon-section" }
   ],
   "repository": {
+    "signature-banner": {
+      "patterns": [
+        { "name": "constant.other.signature-banner.line1.skript", "match": "^#\\s*@@@@@@@        @@@   @@@@@@@\\s*$" },
+        { "name": "constant.other.signature-banner.line2.skript", "match": "^#\\s*@@@@@@@@      @@@@   @@@@@@@\\s*$" },
+        { "name": "constant.other.signature-banner.line3.skript", "match": "^#\\s*@@!  @@@     @@!@!     @@!\\s*$" },
+        { "name": "constant.other.signature-banner.line4.skript", "match": "^#\\s*!@!  @!@    !@!!@!     !@!\\s*$" },
+        { "name": "constant.other.signature-banner.line5.skript", "match": "^#\\s*@!@!!@!    @!! @!!     @!!\\s*$" },
+        { "name": "constant.other.signature-banner.line6.skript", "match": "^#\\s*!!@!@!    !!!  !@!     !!!\\s*$" },
+        { "name": "constant.other.signature-banner.line7.skript", "match": "^#\\s*!!: :!!   :!!:!:!!:    !!:\\s*$" },
+        { "name": "constant.other.signature-banner.line8.skript", "match": "^#\\s*:!:  !:!  !:::!!:::    :!:\\s*$" },
+        { "name": "constant.other.signature-banner.line9.skript", "match": "^#\\s*::   :::       :::      ::\\s*$" },
+        { "name": "constant.other.signature-banner.line10.skript", "match": "^#\\s*:   : :       :::      :\\s*$" }
+      ]
+    },
     "comments": {
       "patterns": [
         {

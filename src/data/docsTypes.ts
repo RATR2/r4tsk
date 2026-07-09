@@ -55,7 +55,10 @@ export type DocCategory =
 
 /** A single syntax element, normalized to one shape regardless of category. */
 export interface DocEntry {
+  /** Raw id from docs.json - the underlying Skript implementation class, e.g. "EffTeleport". NOT guaranteed unique: many trivial events share one generic backing class (e.g. over a hundred distinct events all use "SimpleEvent"), so this can't be used as a lookup key on its own. */
   id: string;
+  /** Assigned by DocsDatabase at load time (`${category}:${index}`) - always unique, safe to use as a map/cache key. */
+  uid: string;
   name: string;
   category: DocCategory;
   since?: string;
