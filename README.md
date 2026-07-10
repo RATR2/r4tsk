@@ -49,6 +49,7 @@ Skript language support for VS Code / VSCodium.
 - **`local function` support** - recognized as its own header (not treated as a variant of `function`), and its scoping is enforced correctly everywhere: calls only resolve to it from within its own script, autocomplete only offers it there too, and the "duplicate function" diagnostic won't flag two unrelated local functions in different files that happen to share a name (only a real same-file collision, or two *global* functions colliding across files, are actual conflicts).
 - **Diagnostics**: undefined function calls (with cross-version suggestions), argument count mismatches, duplicate function definitions, stale `@param` doc tags, `@return` documented on a function with no declared return type, and deprecated syntax usage (see below).
   - Only bare `identifier(...)` calls count as a Skript function call - `.method(...)` (a dot-chain method call, as used by Java-interop addons like Skript-Reflect, e.g. `BetterModel.model(...)`, `{_opt}.isEmpty()`) is recognized as *not* a Skript function call and skipped, rather than being flagged as an undefined function.
+  - The `(` also has to immediately follow the name with no space - `formatted (join {_pages::*} with " ")` or `set {_index} to (({_page}-1)*{@pageSize})` are a keyword immediately followed by a parenthesized group (very common in real code), not a call to a function named "formatted"/"to". A real function call is always written with no space before the paren, same as most languages.
 - **Go to definition** / **find references** for function calls.
 - **Signature help** (parameter hints while typing a call, including per-parameter doc text).
 - **Document & workspace symbols** (outline view, `Ctrl+T` search) for functions, commands and events.
@@ -102,7 +103,7 @@ npm run package       # produce a .vsix via vsce
 ```
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-1.0.3.vsix` via the "Install from VSIX" command.
+built `r4tsk-1.0.4.vsix` via the "Install from VSIX" command.
 
 Open [`examples/example.sk`](examples/example.sk) for a single script touching every feature above
 (doc comments, annotations, hover, `local function` scoping, color codes, diagnostics, and more).
