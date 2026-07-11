@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
 import { findStringContentRanges } from "../utils/textScanning";
 
-const HEX_TAG = /<#([0-9a-fA-F]{6})>/g;
+const HEX_TAG = /<#{1,2}([0-9a-fA-F]{6})>/g;
 
 /**
  * Lets VS Code's built-in color swatch/picker work on Skript's `<#rrggbb>`
- * hex color tags. The default color detection VS Code falls back to when a
- * language has no DocumentColorProvider only recognizes a bare `#rrggbb`
- * with nothing around it, so it never matches Skript's `<...>` wrapper.
+ * (and `<##rrggbb>`) hex color tags. The default color detection VS Code
+ * falls back to when a language has no DocumentColorProvider only recognizes
+ * a bare `#rrggbb` with nothing around it, so it never matches Skript's
+ * `<...>` wrapper.
  */
 export class SkriptColorProvider implements vscode.DocumentColorProvider {
   provideDocumentColors(document: vscode.TextDocument): vscode.ColorInformation[] {
@@ -32,8 +33,15 @@ export class SkriptColorProvider implements vscode.DocumentColorProvider {
     return results;
   }
 
-  provideColorPresentations(color: vscode.Color): vscode.ColorPresentation[] {
-    return [new vscode.ColorPresentation(`<#${colorToHex(color)}>`)];
+  provideColorPresentations(
+    color: vscode.Color,
+    context: { document: vscode.TextDocument; range: vscode.Range }
+  ): vscode.ColorPresentation[] {
+    // Preserve the original tag's "#" count (<#rrggbb> vs <##rrggbb>) rather
+    // than always collapsing back to a single "#" when a color is picked.
+    const original = context.document.getText(context.range);
+    const hashes = /^<(#{1,2})/.exec(original)?.[1] ?? "#";
+    return [new vscode.ColorPresentation(`<${hashes}${colorToHex(color)}>`)];
   }
 }
 

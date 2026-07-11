@@ -93,7 +93,7 @@
         { "include": "#bukkit-color-codes" },
         {
           "name": "constant.other.color.hextag.skript",
-          "match": "<#[0-9a-fA-F]{6}>"
+          "match": "<#{1,2}[0-9a-fA-F]{6}>"
         },
         {
           "name": "meta.embedded.expression.skript",
