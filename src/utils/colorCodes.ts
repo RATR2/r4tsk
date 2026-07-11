@@ -74,7 +74,13 @@ export function scanColorRuns(text: string): ColorRun[] {
     else if (legacy === "o") italic = true;
     // "k" (obfuscated) has no static color/style equivalent - ignored.
 
-    runStart = match.index;
+    // The tag itself (e.g. "&c", "<#5f0202>") is a control sequence - in
+    // real chat rendering it's never actually shown, only the text after it
+    // is. Starting the run after the tag (not at it) keeps that consistent:
+    // coloring the tag's own literal characters with an extreme color (very
+    // dark or very bright) made the tag syntax itself look broken/illegible,
+    // rather than just styling the text it actually affects.
+    runStart = match.index + match[0].length;
   }
 
   flush(text.length);
