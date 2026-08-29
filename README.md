@@ -7,9 +7,9 @@ Skript language support for VS Code / VSCodium.
 - **Syntax highlighting** for `.sk` files (functions, commands, events, variables, types, effects).
 - **Minecraft/Bukkit chat color codes** inside strings are rendered live using their real in-game color/style, following actual chat rendering rules (a color code resets formatting, format codes stack, `&r` resets both):
   - Legacy codes `&0`-`&f` (color) and `&l/&m/&n/&o` (bold/strikethrough/underline/italic), e.g. `"&cRed &lbold text"`.
-  - Hex tags `<#rrggbb>`, using the *exact* color parsed out of the tag itself, e.g. `"<#f18d8d>this text is actually that pink"`.
+  - Hex tags `<#rrggbb>` (and the double-hash `<##rrggbb>` variant some addons use), using the *exact* color parsed out of the tag itself, e.g. `"<#f18d8d>this text is actually that pink"`.
   - This part is implemented as live editor decorations (not just static theme colors), since an arbitrary hex value can't be baked into a fixed color theme.
-- **Color picker support for `<#rrggbb>` tags** — VS Code's built-in color swatch/picker only recognizes a bare `#rrggbb` with nothing around it by default, so it never matched Skript's `<...>`-wrapped hex tags. A `DocumentColorProvider` is registered for `.sk` files so the swatch shows up next to `<#rrggbb>` tags and picking a new color rewrites the tag correctly (including the brackets).
+- **Color picker support for `<#rrggbb>`/`<##rrggbb>` tags** — VS Code's built-in color swatch/picker only recognizes a bare `#rrggbb` with nothing around it by default, so it never matched Skript's `<...>`-wrapped hex tags. A `DocumentColorProvider` is registered for `.sk` files so the swatch shows up next to either tag form and picking a new color rewrites it correctly (including the brackets, and preserving whichever of `#`/`##` the original tag used).
 - **R4TSK Dark theme** — same UI color palette as VS Code's built-in "Dark 2026" theme, with hand-authored syntax colors for Skript instead of the default ones.
 - **Hover call-signature preview** — hover over a function call site, e.g. `functionname("123", true, {object})`, and see the function it resolves to:
   ```
@@ -103,7 +103,7 @@ npm run package       # produce a .vsix via vsce
 ```
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-1.0.4.vsix` via the "Install from VSIX" command.
+built `r4tsk-1.0.5.vsix` via the "Install from VSIX" command.
 
 Open [`examples/example.sk`](examples/example.sk) for a single script touching every feature above
 (doc comments, annotations, hover, `local function` scoping, color codes, diagnostics, and more).

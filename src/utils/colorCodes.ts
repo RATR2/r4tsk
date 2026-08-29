@@ -34,7 +34,7 @@ const LEGACY_COLORS: Record<string, string> = {
   f: "#FFFFFF",
 };
 
-const TAG_PATTERN = /&([0-9a-fklmnor])|<#([0-9a-fA-F]{6})>/gi;
+const TAG_PATTERN = /&([0-9a-fklmnor])|<#{1,2}([0-9a-fA-F]{6})>/gi;
 
 export function scanColorRuns(text: string): ColorRun[] {
   const runs: ColorRun[] = [];
