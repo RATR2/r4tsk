@@ -34,6 +34,11 @@ export class SkriptDocumentSymbolProvider implements vscode.DocumentSymbolProvid
         new vscode.DocumentSymbol(ev.name, "event", vscode.SymbolKind.Event, ev.nameRange, ev.nameRange)
       );
     }
+    for (const opt of parsed.options) {
+      symbols.push(
+        new vscode.DocumentSymbol(opt.name, opt.value, vscode.SymbolKind.Constant, opt.nameRange, opt.nameRange)
+      );
+    }
 
     return symbols;
   }

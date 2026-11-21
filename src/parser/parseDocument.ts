@@ -10,6 +10,7 @@ import {
   ParamInfo,
   ParsedDocument,
 } from "./types";
+import { parseOptions, parseOptionUsages } from "./parseOptions";
 
 const FUNCTION_HEADER = /^(\s*)function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
 /** `local function` - same shape as a regular function, but only callable from within its own script (see FunctionInfo.isLocal). Kept as its own pattern rather than folding an optional "local" into FUNCTION_HEADER above. */
@@ -126,6 +127,8 @@ export function parseDocument(document: vscode.TextDocument): ParsedDocument {
     commands,
     events,
     calls,
+    options: parseOptions(document, rawLines),
+    optionUsages: parseOptionUsages(rawLines),
   };
 }
 

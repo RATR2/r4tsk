@@ -52,6 +52,23 @@ export interface EventInfo {
   nameRange: vscode.Range;
 }
 
+/** An entry of the script's top-level `options:` block, referenced as `{@name}`. Options are file-scoped. */
+export interface OptionInfo {
+  name: string;
+  value: string;
+  uri: vscode.Uri;
+  nameRange: vscode.Range;
+}
+
+/** A `{@name}` reference to an option. */
+export interface OptionUsage {
+  name: string;
+  /** Just the name inside the braces. */
+  nameRange: vscode.Range;
+  /** The whole `{@name}`. */
+  range: vscode.Range;
+}
+
 export interface ArgToken {
   text: string;
   range: vscode.Range;
@@ -71,4 +88,6 @@ export interface ParsedDocument {
   commands: CommandInfo[];
   events: EventInfo[];
   calls: FunctionCallSite[];
+  options: OptionInfo[];
+  optionUsages: OptionUsage[];
 }

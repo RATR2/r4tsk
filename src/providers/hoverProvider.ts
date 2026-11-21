@@ -23,6 +23,19 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
   ): vscode.Hover | undefined {
     const parsed = parseDocument(document);
 
+    const optionUsage = parsed.optionUsages.find((u) => u.range.contains(position));
+    if (optionUsage) {
+      const option = parsed.options.find((o) => o.name === optionUsage.name);
+      const md = new vscode.MarkdownString();
+      if (option) {
+        md.appendCodeblock(`${option.name}: ${option.value}`, "skript");
+        md.appendMarkdown("Option from this script's `options:` block.");
+      } else {
+        md.appendMarkdown(`Undefined option \`${optionUsage.name}\`.`);
+      }
+      return new vscode.Hover(md, optionUsage.range);
+    }
+
     const call = parsed.calls.find((c) => c.callRange.contains(position));
     if (call) {
       const fn = this.index.resolveFunction(call.name, document.uri);

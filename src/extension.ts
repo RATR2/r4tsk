@@ -116,7 +116,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerSetDocsPathCommand(),
     registerManageAddonDocsCommand(),
     vscode.languages.registerHoverProvider(SKRIPT_SELECTOR, new SkriptHoverProvider(index, docsHolder, crossVersionIndex)),
-    vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index), "{", "(", "%", " "),
+    vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index), "{", "@", "(", "%", " "),
     vscode.languages.registerDefinitionProvider(SKRIPT_SELECTOR, new SkriptDefinitionProvider(index)),
     vscode.languages.registerReferenceProvider(SKRIPT_SELECTOR, new SkriptReferenceProvider(index)),
     vscode.languages.registerSignatureHelpProvider(SKRIPT_SELECTOR, new SkriptSignatureHelpProvider(index), "(", ","),
