@@ -34,11 +34,35 @@ export class WorkspaceIndex {
   indexDocument(document: vscode.TextDocument): void {
     if (document.languageId !== "skript") return;
     const key = document.uri.toString();
-    const target = this.isInWorkspace(document.uri) ? this.docs : this.external;
+    const inWorkspace = this.isInWorkspace(document.uri);
+    const target = inWorkspace ? this.docs : this.external;
+    const other = inWorkspace ? this.external : this.docs;
+    // A document lives in exactly one map; drop a stale entry in the other one (e.g. after a workspace folder was added).
+    other.delete(key);
     const existing = target.get(key);
     if (existing && existing.version === document.version) return;
     target.set(key, parseDocument(document));
     this.onDidChangeEmitter.fire();
+  }
+
+  /**
+   * Re-sorts documents after workspace folders were added or removed, then
+   * indexes any files in newly added folders. Documents that left the
+   * workspace are dropped, or kept as external if they are still open.
+   */
+  async refreshWorkspaceFolders(): Promise<void> {
+    const openKeys = new Set(vscode.workspace.textDocuments.map((d) => d.uri.toString()));
+    for (const [key, parsed] of Array.from(this.docs)) {
+      if (this.isInWorkspace(parsed.uri)) continue;
+      this.docs.delete(key);
+      if (openKeys.has(key)) this.external.set(key, parsed);
+    }
+    for (const [key, parsed] of Array.from(this.external)) {
+      if (!this.isInWorkspace(parsed.uri)) continue;
+      this.external.delete(key);
+      this.docs.set(key, parsed);
+    }
+    await this.initialize();
   }
 
   /** With no workspace folder open at all, every file counts as in-workspace (single-file mode). */
@@ -54,9 +78,17 @@ export class WorkspaceIndex {
     }
   }
 
-  /** Drops an out-of-workspace document once it's closed; workspace documents stay indexed. */
-  forgetExternal(uri: vscode.Uri): void {
-    if (this.external.delete(uri.toString())) {
+  /**
+   * Called when a document is closed. Out-of-workspace documents are dropped.
+   * With no workspace folder open, every document is a loose open file with no
+   * project behind it, so a closed one is dropped too; otherwise a closed
+   * workspace document stays indexed because it is still part of the project.
+   */
+  forgetClosed(uri: vscode.Uri): void {
+    const key = uri.toString();
+    const removedExternal = this.external.delete(key);
+    const removedLoose = !vscode.workspace.workspaceFolders?.length && this.docs.delete(key);
+    if (removedExternal || removedLoose) {
       this.onDidChangeEmitter.fire();
     }
   }
@@ -66,8 +98,9 @@ export class WorkspaceIndex {
     return this.docs.get(key) ?? this.external.get(key);
   }
 
-  getAllParsed(): ParsedDocument[] {
-    return Array.from(this.docs.values());
+  /** Every indexed document, or - given `fromUri` - only those visible from it (just itself for an out-of-workspace file). */
+  getAllParsed(fromUri?: vscode.Uri): ParsedDocument[] {
+    return this.docsVisibleFrom(fromUri);
   }
 
   /**
@@ -117,9 +150,11 @@ export class WorkspaceIndex {
     return all;
   }
 
-  /** All functions visible from `fromUri` - every global function, plus `fromUri`'s own local ones. For workspace-wide autocomplete, where offering another file's local function would suggest something uncallable. */
+  /** All functions visible from `fromUri` (see `docsVisibleFrom`) - every global function, plus `fromUri`'s own local ones. For workspace-wide autocomplete, where offering another file's local function would suggest something uncallable. */
   getVisibleFunctions(fromUri: vscode.Uri): FunctionInfo[] {
-    return this.getAllFunctions().filter((fn) => !fn.isLocal || fn.uri.toString() === fromUri.toString());
+    return this.docsVisibleFrom(fromUri)
+      .flatMap((doc) => doc.functions)
+      .filter((fn) => !fn.isLocal || fn.uri.toString() === fromUri.toString());
   }
 
   dispose(): void {

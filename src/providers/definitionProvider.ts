@@ -35,7 +35,7 @@ export class SkriptReferenceProvider implements vscode.ReferenceProvider {
     if (!name) return [];
 
     const locations: vscode.Location[] = [];
-    for (const doc of this.index.getAllParsed()) {
+    for (const doc of this.index.getAllParsed(document.uri)) {
       for (const c of doc.calls) {
         if (c.name.toLowerCase() === name.toLowerCase()) {
           locations.push(new vscode.Location(doc.uri, c.nameRange));

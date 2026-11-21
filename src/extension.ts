@@ -141,9 +141,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
       if (doc.languageId !== "skript") return;
-      index.forgetExternal(doc.uri);
+      index.forgetClosed(doc.uri);
       diagnostics.clear(doc.uri);
     }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => void index.refreshWorkspaceFolders()),
     vscode.window.onDidChangeActiveTextEditor((editor) => refreshDecorations(editor)),
     vscode.window.onDidChangeVisibleTextEditors((editors) => {
       for (const editor of editors) refreshDecorations(editor);
@@ -153,6 +154,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (customPatternDecorator.isRelevantConfigChange(e)) customPatternDecorator.rebuildTypes();
       if (annotationDecorator.isRelevantConfigChange(e) || customPatternDecorator.isRelevantConfigChange(e)) {
         for (const editor of vscode.window.visibleTextEditors) refreshDecorations(editor);
+      }
+      if (e.affectsConfiguration("r4tsk.knownFunctions") || e.affectsConfiguration("r4tsk.diagnostics.enable")) {
+        refreshAllOpenDocuments();
       }
       if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {
         const storedVersion = versionManager.getVersion();
