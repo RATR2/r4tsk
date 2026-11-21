@@ -265,6 +265,12 @@ export class DiagnosticsManager {
     }
   }
 
+  /** Re-checks the document right now and returns what r4tsk reports for it. */
+  check(document: vscode.TextDocument): readonly vscode.Diagnostic[] {
+    this.refresh(document);
+    return this.collection.get(document.uri) ?? [];
+  }
+
   clear(uri: vscode.Uri): void {
     this.collection.delete(uri);
   }

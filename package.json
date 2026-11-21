@@ -56,6 +56,11 @@
         "title": "r4tsk: Configure Annotation Colors"
       },
       {
+        "command": "r4tsk.checkScript",
+        "title": "r4tsk: Check Script",
+        "icon": "$(play)"
+      },
+      {
         "command": "r4tsk.setSkriptVersion",
         "title": "r4tsk: Set Skript Version"
       },
@@ -76,6 +81,15 @@
         "title": "r4tsk: Add Addon Docs from SkriptHub..."
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "r4tsk.checkScript",
+          "when": "resourceLangId == skript",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "r4tsk",
       "properties": {

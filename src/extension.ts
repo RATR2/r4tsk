@@ -192,6 +192,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.commands.executeCommand("workbench.action.openSettings", "r4tsk.customPatterns")
     ),
     vscode.commands.registerCommand("r4tsk.setSkriptVersion", () => versionManager.promptForVersion()),
+    vscode.commands.registerCommand("r4tsk.checkScript", async () => {
+      const document = vscode.window.activeTextEditor?.document;
+      if (!document || document.languageId !== "skript") return;
+      index.indexDocument(document);
+      const found = diagnostics.check(document);
+      const name = path.basename(document.fileName);
+      if (found.length === 0) {
+        vscode.window.showInformationMessage(`r4tsk: no problems found in ${name}.`);
+        return;
+      }
+      const count = (severity: vscode.DiagnosticSeverity) => found.filter((d) => d.severity === severity).length;
+      const parts = [
+        [count(vscode.DiagnosticSeverity.Error), "error"],
+        [count(vscode.DiagnosticSeverity.Warning), "warning"],
+        [count(vscode.DiagnosticSeverity.Information), "notice"],
+        [count(vscode.DiagnosticSeverity.Hint), "hint"],
+      ]
+        .filter(([n]) => (n as number) > 0)
+        .map(([n, label]) => `${n} ${label}${n === 1 ? "" : "s"}`);
+      const choice = await vscode.window.showWarningMessage(`r4tsk: ${parts.join(", ")} in ${name}.`, "Show Problems");
+      if (choice === "Show Problems") await vscode.commands.executeCommand("workbench.actions.view.problems");
+    }),
     registerSetDocsPathCommand(),
     registerManageAddonDocsCommand(),
     registerAddAddonDocsCommand(addonManager),

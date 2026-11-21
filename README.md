@@ -76,7 +76,7 @@ If NeoSkript or IntelliSkript is installed next to r4tsk you will get duplicate 
 | `r4tsk.annotationColors.*` | Foreground and background per annotation tag |
 | `r4tsk.customPatterns` | Regex patterns to color, `{ pattern, color, background?, flags?, bold?, italic? }` |
 
-Commands, from the Command Palette: Set Skript Version, Set Core Docs File, Add Addon Docs from SkriptHub, Manage Addon Docs Files, Configure Annotation Colors, Configure Custom Colored Patterns.
+Commands, from the Command Palette: Check Script (also the play button in the editor title bar of any `.sk` file, it runs the checks now and reports the counts), Set Skript Version, Set Core Docs File, Add Addon Docs from SkriptHub, Manage Addon Docs Files, Configure Annotation Colors, Configure Custom Colored Patterns.
 
 ## Status
 
