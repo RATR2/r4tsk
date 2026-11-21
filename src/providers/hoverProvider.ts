@@ -3,6 +3,7 @@ import { WorkspaceIndex } from "../parser/workspaceIndex";
 import { parseDocument } from "../parser/parseDocument";
 import { FunctionInfo } from "../parser/types";
 import { findBuiltinFunction, findBuiltinType } from "../data/skriptSyntax";
+import { findAddonFunction } from "../data/addonFunctions";
 import { renderDocMarkdown } from "../utils/docFormat";
 import { DocsDatabase, LineMatch, docsSiteUrl } from "../data/docsDatabase";
 import { DocEntry } from "../data/docsTypes";
@@ -29,6 +30,14 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
 
       const builtin = findBuiltinFunction(call.name);
       if (builtin) return buildBuiltinCallHover(builtin);
+
+      const addon = findAddonFunction(call.name);
+      if (addon) {
+        const md = new vscode.MarkdownString();
+        md.appendCodeblock(`${addon.signature}${addon.returns ? ` :: ${addon.returns}` : ""}`, "skript");
+        md.appendMarkdown(`Function from ${addon.addons.join(" / ")}.`);
+        return new vscode.Hover(md, call.callRange);
+      }
     }
 
     const def = parsed.functions.find((f) => f.nameRange.contains(position));

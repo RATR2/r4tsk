@@ -4,6 +4,14 @@ import { FunctionInfo, ParsedDocument } from "./types";
 
 export class WorkspaceIndex {
   private readonly docs = new Map<string, ParsedDocument>();
+  /**
+   * Documents opened from outside every workspace folder (e.g. a file from an
+   * unrelated project restored in an editor tab). They are parsed so they can
+   * be diagnosed on their own, but kept out of `docs` so their functions don't
+   * leak into other projects' duplicate/undefined-function checks, completion
+   * and go-to-definition.
+   */
+  private readonly external = new Map<string, ParsedDocument>();
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.onDidChangeEmitter.event;
 
@@ -26,24 +34,73 @@ export class WorkspaceIndex {
   indexDocument(document: vscode.TextDocument): void {
     if (document.languageId !== "skript") return;
     const key = document.uri.toString();
-    const existing = this.docs.get(key);
+    const inWorkspace = this.isInWorkspace(document.uri);
+    const target = inWorkspace ? this.docs : this.external;
+    const other = inWorkspace ? this.external : this.docs;
+    // A document lives in exactly one map; drop a stale entry in the other one (e.g. after a workspace folder was added).
+    other.delete(key);
+    const existing = target.get(key);
     if (existing && existing.version === document.version) return;
-    this.docs.set(key, parseDocument(document));
+    target.set(key, parseDocument(document));
     this.onDidChangeEmitter.fire();
   }
 
+  /**
+   * Re-sorts documents after workspace folders were added or removed, then
+   * indexes any files in newly added folders. Documents that left the
+   * workspace are dropped, or kept as external if they are still open.
+   */
+  async refreshWorkspaceFolders(): Promise<void> {
+    const openKeys = new Set(vscode.workspace.textDocuments.map((d) => d.uri.toString()));
+    for (const [key, parsed] of Array.from(this.docs)) {
+      if (this.isInWorkspace(parsed.uri)) continue;
+      this.docs.delete(key);
+      if (openKeys.has(key)) this.external.set(key, parsed);
+    }
+    for (const [key, parsed] of Array.from(this.external)) {
+      if (!this.isInWorkspace(parsed.uri)) continue;
+      this.external.delete(key);
+      this.docs.set(key, parsed);
+    }
+    await this.initialize();
+  }
+
+  /** With no workspace folder open at all, every file counts as in-workspace (single-file mode). */
+  private isInWorkspace(uri: vscode.Uri): boolean {
+    if (!vscode.workspace.workspaceFolders?.length) return true;
+    return vscode.workspace.getWorkspaceFolder(uri) !== undefined;
+  }
+
   removeDocument(uri: vscode.Uri): void {
-    if (this.docs.delete(uri.toString())) {
+    const key = uri.toString();
+    if (this.docs.delete(key) || this.external.delete(key)) {
+      this.onDidChangeEmitter.fire();
+    }
+  }
+
+  /**
+   * Called when a document is closed. Out-of-workspace documents are dropped.
+   * With no workspace folder open, every document is a loose open file with no
+   * project behind it, so a closed one is dropped too; otherwise a closed
+   * workspace document stays indexed because it is still part of the project.
+   */
+  forgetClosed(uri: vscode.Uri): void {
+    const key = uri.toString();
+    const removedExternal = this.external.delete(key);
+    const removedLoose = !vscode.workspace.workspaceFolders?.length && this.docs.delete(key);
+    if (removedExternal || removedLoose) {
       this.onDidChangeEmitter.fire();
     }
   }
 
   getParsed(uri: vscode.Uri): ParsedDocument | undefined {
-    return this.docs.get(uri.toString());
+    const key = uri.toString();
+    return this.docs.get(key) ?? this.external.get(key);
   }
 
-  getAllParsed(): ParsedDocument[] {
-    return Array.from(this.docs.values());
+  /** Every indexed document, or - given `fromUri` - only those visible from it (just itself for an out-of-workspace file). */
+  getAllParsed(fromUri?: vscode.Uri): ParsedDocument[] {
+    return this.docsVisibleFrom(fromUri);
   }
 
   /**
@@ -55,7 +112,8 @@ export class WorkspaceIndex {
   findFunctions(name: string, fromUri?: vscode.Uri): FunctionInfo[] {
     const lower = name.toLowerCase();
     const results: FunctionInfo[] = [];
-    for (const doc of this.docs.values()) {
+    const searched: Iterable<ParsedDocument> = this.docsVisibleFrom(fromUri);
+    for (const doc of searched) {
       for (const fn of doc.functions) {
         if (fn.name.toLowerCase() !== lower) continue;
         if (fn.isLocal && fn.uri.toString() !== fromUri?.toString()) continue;
@@ -63,6 +121,16 @@ export class WorkspaceIndex {
       }
     }
     return results;
+  }
+
+  /**
+   * Documents visible from `fromUri`. A file outside the workspace sees only
+   * itself, so a same-named function in the workspace can't make it look like
+   * a duplicate; everything else sees the workspace documents.
+   */
+  private docsVisibleFrom(fromUri?: vscode.Uri): ParsedDocument[] {
+    const own = fromUri ? this.external.get(fromUri.toString()) : undefined;
+    return own ? [own] : Array.from(this.docs.values());
   }
 
   /** First matching function visible from `preferUri`, preferring that same document if it defines one. */
@@ -82,9 +150,11 @@ export class WorkspaceIndex {
     return all;
   }
 
-  /** All functions visible from `fromUri` - every global function, plus `fromUri`'s own local ones. For workspace-wide autocomplete, where offering another file's local function would suggest something uncallable. */
+  /** All functions visible from `fromUri` (see `docsVisibleFrom`) - every global function, plus `fromUri`'s own local ones. For workspace-wide autocomplete, where offering another file's local function would suggest something uncallable. */
   getVisibleFunctions(fromUri: vscode.Uri): FunctionInfo[] {
-    return this.getAllFunctions().filter((fn) => !fn.isLocal || fn.uri.toString() === fromUri.toString());
+    return this.docsVisibleFrom(fromUri)
+      .flatMap((doc) => doc.functions)
+      .filter((fn) => !fn.isLocal || fn.uri.toString() === fromUri.toString());
   }
 
   dispose(): void {

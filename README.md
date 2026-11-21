@@ -68,6 +68,8 @@ Skript language support for VS Code / VSCodium.
   - Skript 2.13 also reorganized several older multi-concept expressions into small standalone "properties" *within the same version* - e.g. the old "Name / Display Name / Tab List Name" expression became two separate, non-deprecated properties, "name" and "display name" (`name of %thing%`/`%thing%'s name`, same syntax convention that predates the property system). docs.json doesn't give properties their own patterns (they're closer to metadata), so their call syntax is synthesized from their name specifically to catch this: a deprecated match is suppressed if it's also exactly covered by a non-deprecated property. This is scoped tightly enough to still correctly flag the parts of an old expression that *didn't* get a property replacement - e.g. `'s nick name`/`'s custom name`/`'s chat name` (no such property exists) still warn, only `'s name`/`'s display name` are suppressed.
   - (An earlier version of this also tried to note "this feature was updated in version X, and you have it" using entries' multi-segment `since` fields, but that turned out to be more noise than signal in practice - most such version bumps are ancient, so it fired on nearly every use of common effects like `set`/`add`/`remove`. Removed.)
 - **Skript version tracking** - the first time you open a `.sk` file, r4tsk asks what version of Skript you're running and remembers it. A status bar item at the bottom (`Skript: x.y.z`) shows the current value and can be clicked anytime to change it (or run **"r4tsk: Set Skript Version"** from the Command Palette). If your version's major.minor doesn't match the currently active docs database, the status bar item turns into a warning so you know hover/completion info might not perfectly apply.
+- **Addon functions don't warn as undefined.** Functions from SkBee, Skript-Particle, skript-math and a few others (e.g. `dustOption`, `rgb`-style helpers) are bundled from the SkriptHub syntax list, so calling them isn't reported as an undefined function. For anything else, list the names in `r4tsk.knownFunctions`.
+- **Files outside the open workspace are no longer counted for duplicate functions.** A script from an unrelated project that VS Code happened to open used to be indexed and could trigger "Duplicate function" warnings; it is now diagnosed on its own only.
 - **Addon support (SkBee, Skript-GUI, etc.), via `r4tsk.additionalDocsPaths`.** There's no central registry of addon syntax to download from - but Skript's own `/sk gen-docs` command generates a `docs.json` covering *every addon installed on the server it runs on*, in the exact same schema core Skript's docs use. So:
   1. Spin up a throwaway/dev server with Skript + whichever addons you use (SkBee, Skript-GUI, etc.) installed.
   2. Run `/sk gen-docs` - this produces `plugins/Skript/docs/docs.json`, containing vanilla Skript's syntax *and* every installed addon's.
@@ -100,7 +102,13 @@ npm run typecheck   # tsc --noEmit
 npm run build        # bundle with esbuild -> dist/extension.js
 npm run watch         # rebuild on change, for use with F5 (Extension Development Host)
 npm run package       # produce a .vsix via vsce
+npm run release:dry    # typecheck + package, publishes nothing
+npm run release        # typecheck, package, confirm, then publish to the VS Code Marketplace and Open VSX
 ```
+
+**Publishing from GitHub:** the `Publish` workflow (Actions tab, run manually, `main` only) publishes to the VS Code Marketplace with Trusted Publishing, so no Marketplace token is stored. Set it up once with a policy on the publisher's Trusted Publishing page: owner `RATR2`, repository `r4tsk`, workflow `publish.yml`, no environment. Add an `OVSX_PAT` repository secret if it should also publish to Open VSX.
+
+`npm run release` reads tokens from the environment (`VSCE_PAT` for the Marketplace, `OVSX_PAT` for Open VSX), refuses to run with uncommitted changes, and asks before publishing. Flags: `--only vsce|ovsx`, `--yes`, `--allow-dirty`.
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
 built `r4tsk-1.0.5.vsix` via the "Install from VSIX" command.

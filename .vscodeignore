@@ -8,3 +8,7 @@ esbuild.js
 tsconfig.json
 **/*.map
 **/.eslintrc.json
+scripts/**
+.env
+.env.*
+.github/**
