@@ -2,6 +2,16 @@ import * as vscode from "vscode";
 import { parseDocument } from "./parseDocument";
 import { FunctionInfo, ParsedDocument } from "./types";
 
+/** Cheap content fingerprint (length plus FNV-1a hash) used to tell whether a document's text actually changed. */
+function contentSignature(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${text.length}:${hash >>> 0}`;
+}
+
 export class WorkspaceIndex {
   private readonly docs = new Map<string, ParsedDocument>();
   /**
@@ -12,6 +22,12 @@ export class WorkspaceIndex {
    * and go-to-definition.
    */
   private readonly external = new Map<string, ParsedDocument>();
+  /**
+   * Content signature of each indexed document. A document's `version` isn't
+   * enough to detect changes: a file edited outside the editor and re-opened
+   * from disk starts again at version 1, so it looks unchanged.
+   */
+  private readonly signatures = new Map<string, string>();
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.onDidChangeEmitter.event;
 
@@ -40,7 +56,9 @@ export class WorkspaceIndex {
     // A document lives in exactly one map; drop a stale entry in the other one (e.g. after a workspace folder was added).
     other.delete(key);
     const existing = target.get(key);
-    if (existing && existing.version === document.version) return;
+    const signature = contentSignature(document.getText());
+    if (existing && existing.version === document.version && this.signatures.get(key) === signature) return;
+    this.signatures.set(key, signature);
     target.set(key, parseDocument(document));
     this.onDidChangeEmitter.fire();
   }
@@ -73,6 +91,7 @@ export class WorkspaceIndex {
 
   removeDocument(uri: vscode.Uri): void {
     const key = uri.toString();
+    this.signatures.delete(key);
     if (this.docs.delete(key) || this.external.delete(key)) {
       this.onDidChangeEmitter.fire();
     }
@@ -89,6 +108,7 @@ export class WorkspaceIndex {
     const removedExternal = this.external.delete(key);
     const removedLoose = !vscode.workspace.workspaceFolders?.length && this.docs.delete(key);
     if (removedExternal || removedLoose) {
+      this.signatures.delete(key);
       this.onDidChangeEmitter.fire();
     }
   }
