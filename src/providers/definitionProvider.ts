@@ -10,6 +10,13 @@ export class SkriptDefinitionProvider implements vscode.DefinitionProvider {
     position: vscode.Position
   ): vscode.Definition | undefined {
     const parsed = parseDocument(document);
+    const usage = parsed.optionUsages.find((u) => u.range.contains(position));
+    if (usage) {
+      // Options are file-scoped, so only this document's `options:` block is searched.
+      const option = parsed.options.find((o) => o.name === usage.name);
+      return option ? new vscode.Location(option.uri, option.nameRange) : undefined;
+    }
+
     const call = parsed.calls.find((c) => c.nameRange.contains(position));
     if (!call) return undefined;
 

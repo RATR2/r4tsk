@@ -137,6 +137,14 @@ export class DiagnosticsManager {
 
     this.scanCodeUsage(document, diagnostics, currentDocs);
 
+    const definedOptions = new Set(parsed.options.map((o) => o.name));
+    for (const usage of parsed.optionUsages) {
+      if (definedOptions.has(usage.name)) continue;
+      diagnostics.push(
+        new vscode.Diagnostic(usage.nameRange, `Undefined option '${usage.name}'.`, vscode.DiagnosticSeverity.Warning)
+      );
+    }
+
     this.collection.set(uri, diagnostics);
   }
 

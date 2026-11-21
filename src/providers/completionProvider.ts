@@ -8,6 +8,7 @@ import {
   BUILTIN_TYPES,
 } from "../data/skriptSyntax";
 import { renderDocMarkdown } from "../utils/docFormat";
+import { parseDocument } from "../parser/parseDocument";
 
 export class SkriptCompletionProvider implements vscode.CompletionItemProvider {
   constructor(private readonly index: WorkspaceIndex) {}
@@ -18,6 +19,21 @@ export class SkriptCompletionProvider implements vscode.CompletionItemProvider {
   ): vscode.CompletionItem[] {
     const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
     const items: vscode.CompletionItem[] = [];
+
+    // `{@` - offer this file's options (they're file-scoped), and nothing else.
+    const optionPrefix = /\{@([^{}]*)$/.exec(linePrefix);
+    if (optionPrefix) {
+      const partialStart = position.character - optionPrefix[1].length;
+      const nextChar = document.lineAt(position.line).text.charAt(position.character);
+      for (const option of parseDocument(document).options) {
+        const item = new vscode.CompletionItem(option.name, vscode.CompletionItemKind.Constant);
+        item.detail = option.value;
+        item.insertText = nextChar === "}" ? option.name : `${option.name}}`;
+        item.range = new vscode.Range(position.line, partialStart, position.line, position.character);
+        items.push(item);
+      }
+      return items;
+    }
 
     if (/^\s*on\s+[a-zA-Z ]*$/.test(linePrefix)) {
       for (const ev of BUILTIN_EVENTS) {

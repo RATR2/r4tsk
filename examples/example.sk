@@ -161,6 +161,24 @@ on script load:
 # 	if {_opt}.isEmpty() is true:
 # 		stop
 
+# --- Options (file-scoped constants) -----------------------------------------
+# `{@name}` references an entry of this file's `options:` block. Ctrl+click
+# jumps to the entry, hovering shows its value, typing `{@` completes the
+# names, and a name with no matching entry gets an "Undefined option" warning.
+options:
+	prefix: "&8[&bExample&8] "
+	max_kits: 3
+	# comments and blank lines inside the block are fine
+
+	greeting: Welcome, traveller: enjoy your stay
+
+on join:
+	send "{@prefix}{@greeting}" to player
+	if {kits::%player's uuid%} >= {@max_kits}:
+		stop
+	# {@not_checked_inside_comments}
+	# send "{@missing_option}" to player      # uncomment for: Undefined option 'missing_option'.
+
 # --- Diagnostics playground (commented out - uncomment to see each one) -----
 # on script load:
 # 	thisFunctionDoesNotExist(player)               # Undefined function 'thisFunctionDoesNotExist'.
