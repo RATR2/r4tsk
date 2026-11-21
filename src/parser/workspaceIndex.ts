@@ -90,12 +90,14 @@ export class WorkspaceIndex {
     return results;
   }
 
-  /** Workspace documents, plus `fromUri`'s own document when it lives outside the workspace (so a lone file still resolves its own functions). */
+  /**
+   * Documents visible from `fromUri`. A file outside the workspace sees only
+   * itself, so a same-named function in the workspace can't make it look like
+   * a duplicate; everything else sees the workspace documents.
+   */
   private docsVisibleFrom(fromUri?: vscode.Uri): ParsedDocument[] {
-    const docs = Array.from(this.docs.values());
     const own = fromUri ? this.external.get(fromUri.toString()) : undefined;
-    if (own) docs.push(own);
-    return docs;
+    return own ? [own] : Array.from(this.docs.values());
   }
 
   /** First matching function visible from `preferUri`, preferring that same document if it defines one. */
