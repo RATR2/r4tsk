@@ -19,6 +19,10 @@ import { CrossVersionIndex } from "./data/crossVersionIndex";
 import { SkriptVersionManager } from "./providers/skriptVersionManager";
 import { checkForConflicts } from "./providers/conflictCheck";
 import { registerManageAddonDocsCommand, registerSetDocsPathCommand } from "./providers/docsPathCommands";
+import { registerAddAddonDocsCommand } from "./providers/addonDocsCommand";
+import { AddonDocsManager } from "./data/addonDocsManager";
+import { SkriptHubClient } from "./data/skriptHubClient";
+import { configureAddonFunctions } from "./data/addonFunctions";
 
 const SKRIPT_SELECTOR: vscode.DocumentSelector = { language: "skript" };
 
@@ -33,12 +37,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const getCustomDocsPath = (): string | undefined => config().get<string>("docsPath")?.trim() || undefined;
 
-  /** Absolute paths to addon docs.json files (e.g. generated via `/sk gen-docs` on a server with SkBee/Skript-GUI/etc. installed) to merge with whichever core Skript docs source is active. */
-  const getAdditionalDocsPaths = (): string[] =>
+  const addonManager = new AddonDocsManager(
+    path.join(context.globalStorageUri.fsPath, "skripthub"),
+    new SkriptHubClient(path.join(context.globalStorageUri.fsPath, "skripthub"))
+  );
+  const getSelectedAddons = (): string[] =>
     config()
+      .get<string[]>("addons", [])
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
+
+  /** Absolute paths to addon docs.json files (e.g. generated via `/sk gen-docs` on a server with SkBee/Skript-GUI/etc. installed) to merge with whichever core Skript docs source is active. */
+  const getAdditionalDocsPaths = (): string[] => {
+    const paths = config()
       .get<string[]>("additionalDocsPaths", [])
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
+    // Docs generated from the SkriptHub addons chosen in `r4tsk.addons`.
+    const generated = getSelectedAddons().length > 0 ? addonManager.existingDocsPath() : undefined;
+    return generated ? [...paths, generated] : paths;
+  };
 
   const readAdditionalDocsTexts = (): string[] => {
     const texts: string[] = [];
@@ -61,6 +79,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       : DocsDatabase.loadMultiple(bundledDocsPath, additional);
   };
 
+  configureAddonFunctions(getSelectedAddons());
   const bundledDocs = establishDocsFromSettings();
   const docsHolder = new DocsHolder(bundledDocs, bundledDocs?.sourceVersion);
   const downloadManager = new DocsDownloadManager(path.join(context.globalStorageUri.fsPath, "docs-cache"));
@@ -98,6 +117,49 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   };
 
+  const reloadDocsLive = (): void => {
+    const storedVersion = versionManager.getVersion();
+    const autoDownload = config().get<boolean>("autoDownloadDocs", true);
+    // applyVersion() is a no-op when auto-download is off (or a custom
+    // docsPath is set) - routing there in that case would silently drop
+    // the change instead of applying it live like the setting promises.
+    if (storedVersion && autoDownload && !getCustomDocsPath()) {
+      void applyVersion(storedVersion);
+    } else {
+      const reloaded = establishDocsFromSettings();
+      if (reloaded) {
+        docsHolder.set(reloaded, reloaded.sourceVersion);
+        refreshAllOpenDocuments();
+      }
+    }
+  };
+
+  /** Regenerates the docs for the addons in `r4tsk.addons` (from the cached/online SkriptHub list) and merges them live. */
+  const rebuildAddons = async (announce: boolean): Promise<void> => {
+    const selected = getSelectedAddons();
+    try {
+      const result = await addonManager.build(selected);
+      configureAddonFunctions(selected, result.functions);
+      if (result.changed) reloadDocsLive();
+      else refreshAllOpenDocuments();
+      if (announce && selected.length > 0) {
+        const r = result.report;
+        vscode.window.showInformationMessage(
+          `r4tsk: merged ${r.converted} of ${r.considered} syntax entries from ${selected.join(", ")}` +
+            (r.considered > r.converted ? ` (${r.considered - r.converted} could not be converted)` : "") +
+            (result.stale ? " - offline, used an older cached list." : ".")
+        );
+      }
+    } catch {
+      // Offline with no cache: keep what is already loaded; bundled function names still apply.
+      configureAddonFunctions(selected);
+      refreshAllOpenDocuments();
+      if (announce) {
+        vscode.window.showWarningMessage("r4tsk: could not reach SkriptHub and there is no cached addon list yet - try again when online.");
+      }
+    }
+  };
+
   context.subscriptions.push(
     index,
     diagnostics,
@@ -115,6 +177,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("r4tsk.setSkriptVersion", () => versionManager.promptForVersion()),
     registerSetDocsPathCommand(),
     registerManageAddonDocsCommand(),
+    registerAddAddonDocsCommand(addonManager),
     vscode.languages.registerHoverProvider(SKRIPT_SELECTOR, new SkriptHoverProvider(index, docsHolder, crossVersionIndex)),
     vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index), "{", "(", "%", " "),
     vscode.languages.registerDefinitionProvider(SKRIPT_SELECTOR, new SkriptDefinitionProvider(index)),
@@ -160,21 +223,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         refreshAllOpenDocuments();
       }
       if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {
-        const storedVersion = versionManager.getVersion();
-        const autoDownload = config().get<boolean>("autoDownloadDocs", true);
-        // applyVersion() is a no-op when auto-download is off (or a custom
-        // docsPath is set) - routing there in that case would silently drop
-        // the change instead of applying it live like the setting promises.
-        if (storedVersion && autoDownload && !getCustomDocsPath()) {
-          void applyVersion(storedVersion);
-        } else {
-          const reloaded = establishDocsFromSettings();
-          if (reloaded) {
-            docsHolder.set(reloaded, reloaded.sourceVersion);
-            refreshAllOpenDocuments();
-          }
-        }
+        reloadDocsLive();
       }
+      if (e.affectsConfiguration("r4tsk.addons")) void rebuildAddons(true);
     }),
     index.onDidChange(() => refreshAllOpenDocuments())
   );
@@ -201,6 +252,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const storedVersion = versionManager.getVersion();
     if (storedVersion) void applyVersion(storedVersion);
   }
+
+  void rebuildAddons(false);
 
   if (config().get<boolean>("crossVersionSuggestions", true) && !getCustomDocsPath()) {
     void crossVersionIndex.warmUp().then(refreshAllOpenDocuments);

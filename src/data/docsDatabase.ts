@@ -49,7 +49,7 @@ function eventSlug(name: string): string {
  */
 export function docsSiteUrl(entry: DocEntry): string | undefined {
   const page = DOCS_SITE_PAGE[entry.category];
-  if (!page) return undefined;
+  if (!page || entry.id.startsWith("skripthub:")) return undefined; // addon entries converted from SkriptHub aren't on docs.skriptlang.org
   const anchor = entry.category === "event" ? eventSlug(entry.name) : entry.id;
   return `https://docs.skriptlang.org/${page}#${anchor}`;
 }
@@ -408,6 +408,11 @@ export class DocsDatabase {
     }
     if (raws.length === 0) return undefined;
     return new DocsDatabase(raws);
+  }
+
+  /** Function entries whose name is exactly `name` (case-insensitive) - core Skript's and any addon docs' alike. */
+  findFunctionEntries(name: string): DocEntry[] {
+    return (this.byNameLower.get(name.toLowerCase()) ?? []).filter((e) => e.category === "function");
   }
 
   /** Whether some entry with this exact name (any category) exists and isn't deprecated. */

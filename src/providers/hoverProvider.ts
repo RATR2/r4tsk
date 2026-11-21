@@ -3,7 +3,7 @@ import { WorkspaceIndex } from "../parser/workspaceIndex";
 import { parseDocument } from "../parser/parseDocument";
 import { FunctionInfo } from "../parser/types";
 import { findBuiltinFunction, findBuiltinType } from "../data/skriptSyntax";
-import { findAddonFunction } from "../data/addonFunctions";
+import { findAddonFunctions } from "../data/addonFunctions";
 import { renderDocMarkdown } from "../utils/docFormat";
 import { DocsDatabase, LineMatch, docsSiteUrl } from "../data/docsDatabase";
 import { DocEntry } from "../data/docsTypes";
@@ -31,11 +31,21 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
       const builtin = findBuiltinFunction(call.name);
       if (builtin) return buildBuiltinCallHover(builtin);
 
-      const addon = findAddonFunction(call.name);
-      if (addon) {
+      // Core Skript's docs entry wins over an addon function of the same name
+      // (e.g. `factorial`, `quaternion`); only addon-derived entries (from
+      // SkriptHub) don't count as core.
+      const docsFns = this.docs.current?.findFunctionEntries(call.name) ?? [];
+      const coreFn = docsFns.find((e) => !e.id.startsWith("skripthub:")) ?? docsFns[0];
+      if (coreFn && this.docs.current) return buildDocsEntryHover(coreFn, call.name, this.docs.current, call.callRange);
+
+      const addons = findAddonFunctions(call.name);
+      if (addons.length > 0) {
         const md = new vscode.MarkdownString();
-        md.appendCodeblock(`${addon.signature}${addon.returns ? ` :: ${addon.returns}` : ""}`, "skript");
-        md.appendMarkdown(`Function from ${addon.addons.join(" / ")}.`);
+        for (const addon of addons) {
+          md.appendCodeblock(`${addon.signature}${addon.returns ? ` :: ${addon.returns}` : ""}`, "skript");
+          if (addon.description) md.appendMarkdown(`${addon.description}\n\n`);
+        }
+        md.appendMarkdown(`Function from ${[...new Set(addons.flatMap((a) => a.addons))].join(" / ")}.`);
         return new vscode.Hover(md, call.callRange);
       }
     }

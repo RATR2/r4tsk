@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 import { WorkspaceIndex } from "../parser/workspaceIndex";
 import { findBuiltinFunction } from "../data/skriptSyntax";
-import { findAddonFunction } from "../data/addonFunctions";
+import { findAddonFunctions, parseSignature } from "../data/addonFunctions";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
 import { DocsDatabase } from "../data/docsDatabase";
+import { FunctionCallSite } from "../parser/types";
 import { maskLine, maskVariableBraces } from "../utils/textScanning";
 
 export class DiagnosticsManager {
@@ -26,6 +27,52 @@ export class DiagnosticsManager {
     return new Set(names.map((n) => n.trim().toLowerCase()).filter((n) => n.length > 0));
   }
 
+  /**
+   * For a call to a known addon function, checks the argument count against
+   * its signature - as a Warning only, and only when the signature is
+   * reliable (every parameter parsed, no list-typed parameter) and no
+   * same-named function exists in core Skript's docs (core wins). With
+   * several addons defining the name, the call is fine if any signature fits.
+   * Returns whether the name is a known addon function.
+   */
+  private checkAddonCall(
+    call: FunctionCallSite,
+    diagnostics: vscode.Diagnostic[],
+    currentDocs: DocsDatabase | undefined
+  ): boolean {
+    const candidates = findAddonFunctions(call.name);
+    if (candidates.length === 0) return false;
+    if (currentDocs?.findFunctionEntries(call.name).some((e) => !e.id.startsWith("skripthub:"))) return true;
+
+    const parsed = candidates.map((c) => parseSignature(c.signature));
+    if (parsed.some((p) => !p || !p.reliable)) return true;
+
+    const fits = parsed.some((p) => {
+      const params = p!.params;
+      const required = params.filter((x) => !x.optional).length;
+      return call.args.length >= required && call.args.length <= params.length;
+    });
+    if (fits) return true;
+
+    const first = parsed[0]!;
+    const required = first.params.filter((x) => !x.optional).length;
+    const addons = [...new Set(candidates.flatMap((c) => c.addons))].join("/");
+    const takes =
+      candidates.length > 1
+        ? "has no signature taking that many arguments"
+        : required === first.params.length
+          ? `takes ${required}`
+          : `takes ${required} to ${first.params.length}`;
+    diagnostics.push(
+      new vscode.Diagnostic(
+        call.callRange,
+        `'${candidates[0].name}' (${addons}) ${takes}; got ${call.args.length}.`,
+        vscode.DiagnosticSeverity.Warning
+      )
+    );
+    return true;
+  }
+
   refresh(document: vscode.TextDocument): void {
     const uri = document.uri;
     if (!this.enabled()) {
@@ -44,7 +91,7 @@ export class DiagnosticsManager {
       const fn = this.index.resolveFunction(call.name, uri);
       if (!fn) {
         if (findBuiltinFunction(call.name)) continue;
-        if (findAddonFunction(call.name)) continue;
+        if (this.checkAddonCall(call, diagnostics, currentDocs)) continue;
         if (knownFunctions.has(call.name.toLowerCase())) continue;
         if (currentDocs?.lookupWord(call.name)?.category === "function") continue;
 
