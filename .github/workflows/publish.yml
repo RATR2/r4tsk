@@ -1,10 +1,14 @@
 name: Publish
 
-# Run manually from the Actions tab, on main only. The VS Code Marketplace step
-# uses Trusted Publishing (OIDC), so no VSCE_PAT secret exists. It needs a
-# policy on the publisher's "Trusted Publishing" page naming this repository
-# and this workflow file (publish.yml), with no environment.
+# Publishes when a merge to main changes the version in package.json, or when
+# run manually from the Actions tab. The VS Code Marketplace step uses Trusted
+# Publishing (OIDC), so no VSCE_PAT secret exists. It needs a policy on the
+# publisher's "Trusted Publishing" page naming this repository and this
+# workflow file (publish.yml), with no environment.
 on:
+  push:
+    branches: [main]
+    paths: [package.json]
   workflow_dispatch:
 
 jobs:
@@ -18,15 +22,34 @@ jobs:
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check the version changed
+        id: version
+        run: |
+          new=$(node -p "require('./package.json').version")
+          old=$(git show HEAD^:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" || echo none)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$new" != "$old" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing $new (previous: $old)"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version is still $new, nothing to publish"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.version.outputs.publish == 'true'
         with:
           node-version: 22
       - run: npm ci
+        if: steps.version.outputs.publish == 'true'
       - run: npm run typecheck
+        if: steps.version.outputs.publish == 'true'
       - name: Package
+        if: steps.version.outputs.publish == 'true'
         run: npx --yes @vscode/vsce@4.1.1 package --out r4tsk.vsix
       - name: Publish to the VS Code Marketplace
+        if: steps.version.outputs.publish == 'true'
         run: npx --yes @vscode/vsce@4.1.1 publish --oidc --packagePath r4tsk.vsix
       - name: Publish to Open VSX
-        if: ${{ env.OVSX_PAT != '' }}
+        if: ${{ steps.version.outputs.publish == 'true' && env.OVSX_PAT != '' }}
         run: npx --yes ovsx publish r4tsk.vsix
