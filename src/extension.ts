@@ -69,11 +69,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const versionManager = new SkriptVersionManager(context, () => docsHolder.activeVersionLabel);
   const diagnostics = new DiagnosticsManager(index, docsHolder, crossVersionIndex);
 
-  const refreshAllOpenDocuments = () => {
+  const refreshAllNow = () => {
     for (const doc of vscode.workspace.textDocuments) {
       if (doc.languageId === "skript") diagnostics.refresh(doc);
     }
   };
+
+  // Every indexed change used to re-diagnose all open documents right away, so
+  // a burst of changes (typing, workspace indexing) did the work many times
+  // over. Coalesce bursts into one pass shortly after the last request.
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  const refreshAllOpenDocuments = () => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined;
+      refreshAllNow();
+    }, 150);
+  };
+  context.subscriptions.push({
+    dispose: () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+    },
+  });
 
   const refreshDecorations = (editor: vscode.TextEditor | undefined) => {
     colorDecorator.refresh(editor);
@@ -156,7 +173,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (annotationDecorator.isRelevantConfigChange(e) || customPatternDecorator.isRelevantConfigChange(e)) {
         for (const editor of vscode.window.visibleTextEditors) refreshDecorations(editor);
       }
-      if (e.affectsConfiguration("r4tsk.knownFunctions") || e.affectsConfiguration("r4tsk.diagnostics.enable") || e.affectsConfiguration("r4tsk.diagnostics.experimentalNotice")) {
+      if (
+        e.affectsConfiguration("r4tsk.knownFunctions") ||
+        e.affectsConfiguration("r4tsk.diagnostics.enable") ||
+        e.affectsConfiguration("r4tsk.diagnostics.experimentalNotice") ||
+        e.affectsConfiguration("r4tsk.diagnostics.unrecognizedSyntax")
+      ) {
         refreshAllOpenDocuments();
       }
       if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {

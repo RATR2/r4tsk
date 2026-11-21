@@ -84,6 +84,17 @@
           "default": true,
           "description": "Warn when syntax that explicitly requires an experimental feature is used without the matching `using <feature>` line, and report `using` lines naming an unknown feature (as information)."
         },
+        "r4tsk.diagnostics.unrecognizedSyntax": {
+          "type": "string",
+          "enum": ["off", "information", "warning"],
+          "enumDescriptions": [
+            "Don't report lines Skript may not understand.",
+            "Report them as informational hints.",
+            "Report them as warnings."
+          ],
+          "default": "information",
+          "description": "How to report statement lines that match no known Skript syntax in the loaded docs (core plus addon docs). Conservative: skips lines it cannot judge. Needs r4tsk.diagnostics.enable."
+        },
         "r4tsk.docsPath": {
           "type": "string",
           "default": "",
@@ -219,6 +230,7 @@
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check:parser": "node scripts/check-parser.js",
     "package": "vsce package",
     "publish:vsce": "vsce publish",
     "publish:ovsx": "ovsx publish",

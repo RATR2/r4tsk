@@ -6,6 +6,7 @@ import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
 import { DocsDatabase } from "../data/docsDatabase";
 import { experimentDiagnostics, missingExperimentDiagnostics } from "./experimentalFeatures";
+import { findUnrecognizedLines } from "../parser/unrecognizedSyntax";
 import { maskLine, maskVariableBraces } from "../utils/textScanning";
 
 export class DiagnosticsManager {
@@ -146,6 +147,7 @@ export class DiagnosticsManager {
         new vscode.Diagnostic(usage.nameRange, `Undefined option '${usage.name}'.`, vscode.DiagnosticSeverity.Warning)
       );
     }
+    this.scanUnrecognizedSyntax(document, diagnostics, currentDocs);
 
     this.collection.set(uri, diagnostics);
   }
@@ -190,6 +192,29 @@ export class DiagnosticsManager {
           )
         );
       }
+    }
+  }
+
+  private scanUnrecognizedSyntax(
+    document: vscode.TextDocument,
+    diagnostics: vscode.Diagnostic[],
+    currentDocs: DocsDatabase | undefined
+  ): void {
+    const mode = vscode.workspace.getConfiguration("r4tsk").get<string>("diagnostics.unrecognizedSyntax", "information");
+    if (mode === "off" || !currentDocs) return;
+    const severity = mode === "warning" ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information;
+
+    const lines: string[] = [];
+    for (let i = 0; i < document.lineCount; i++) lines.push(document.lineAt(i).text);
+
+    for (const { line, start, end } of findUnrecognizedLines(lines, currentDocs)) {
+      const diagnostic = new vscode.Diagnostic(
+        new vscode.Range(line, start, line, end),
+        "Skript may not understand this line.",
+        severity
+      );
+      diagnostic.code = "unrecognizedSyntax";
+      diagnostics.push(diagnostic);
     }
   }
 
