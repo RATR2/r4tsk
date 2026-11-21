@@ -9,6 +9,7 @@ import { DocsDatabase, LineMatch, docsSiteUrl } from "../data/docsDatabase";
 import { DocEntry } from "../data/docsTypes";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
+import { experimentHover } from "./experimentalFeatures";
 
 export class SkriptHoverProvider implements vscode.HoverProvider {
   constructor(
@@ -35,6 +36,8 @@ export class SkriptHoverProvider implements vscode.HoverProvider {
       }
       return new vscode.Hover(md, optionUsage.range);
     }
+    const usingHover = experimentHover(parsed, position, this.docs.current);
+    if (usingHover) return usingHover;
 
     const call = parsed.calls.find((c) => c.callRange.contains(position));
     if (call) {

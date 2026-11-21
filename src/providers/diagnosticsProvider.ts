@@ -5,6 +5,7 @@ import { findAddonFunction } from "../data/addonFunctions";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
 import { DocsDatabase } from "../data/docsDatabase";
+import { experimentDiagnostics, missingExperimentDiagnostics } from "./experimentalFeatures";
 import { maskLine, maskVariableBraces } from "../utils/textScanning";
 
 export class DiagnosticsManager {
@@ -136,6 +137,7 @@ export class DiagnosticsManager {
     }
 
     this.scanCodeUsage(document, diagnostics, currentDocs);
+    diagnostics.push(...experimentDiagnostics(parsed, currentDocs), ...missingExperimentDiagnostics(document, parsed, currentDocs));
 
     const definedOptions = new Set(parsed.options.map((o) => o.name));
     for (const usage of parsed.optionUsages) {

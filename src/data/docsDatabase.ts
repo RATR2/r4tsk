@@ -539,6 +539,36 @@ export class DocsDatabase {
   }
 
   /**
+   * Every entry (any category, deprecated or not) whose pattern matches
+   * *somewhere inside* `line`, with the tightened range of the match. Same
+   * substring approach as `findDeprecatedUsages`, but unfiltered.
+   */
+  findSubstringUsages(line: string): Array<{ entry: DocEntry; index: number; length: number }> {
+    const results: Array<{ entry: DocEntry; index: number; length: number }> = [];
+    const candidateUids = new Set<string>();
+    CODE_WORD.lastIndex = 0;
+    let wordMatch: RegExpExecArray | null;
+    while ((wordMatch = CODE_WORD.exec(line))) {
+      const word = wordMatch[0].toLowerCase();
+      if (STOPWORDS.has(word)) continue;
+      for (const entry of this.byKeyword.get(word) ?? []) candidateUids.add(entry.uid);
+      for (const entry of this.byNameLower.get(word) ?? []) candidateUids.add(entry.uid);
+    }
+    for (const uid of candidateUids) {
+      const entry = this.byUid.get(uid);
+      if (!entry) continue;
+      for (const pattern of this.getSubstringCompiledPatterns(entry)) {
+        const match = pattern.regex.exec(line);
+        if (!match) continue;
+        const [index, end] = tightenMatchRange(match);
+        results.push({ entry, index, length: end - index });
+        break;
+      }
+    }
+    return results;
+  }
+
+  /**
    * Skript's 2.13 "property" system reorganized several older, standalone
    * expressions (each covering many unrelated types at once, e.g. the old
    * "Name / Display Name / Tab List Name" expression) into small, per-concept
@@ -587,7 +617,7 @@ export class DocsDatabase {
    * anywhere on the line. Candidates are narrowed via the keyword index
    * first so we're not compiling/testing all ~1200 patterns per line.
    */
-  matchLine(line: string, categoryFilter?: DocCategory[]): LineMatch | undefined {
+  matchLine(line: string, categoryFilter?: DocCategory[], allMatches?: LineMatch[]): LineMatch | undefined {
     const commentStart = findCommentStart(line);
     const code = commentStart === -1 ? line : line.slice(0, commentStart);
 
@@ -621,6 +651,9 @@ export class DocsDatabase {
         const match = pattern.regex.exec(trimmed);
         if (!match) continue;
 
+        // Optional: report every matching entry, not just the most specific one.
+        allMatches?.push({ entry, pattern, values: match.slice(1).map((v) => (v === undefined ? undefined : v.trim())) });
+
         const specificity = pattern.requiredLiteralChars;
         if (specificity <= bestSpecificity) continue;
 
@@ -634,5 +667,23 @@ export class DocsDatabase {
     }
 
     return best;
+  }
+
+  /** All documented experimental features (the docs.json `experiments` category), core and addons. */
+  getExperiments(): DocEntry[] {
+    return this.entries.filter((e) => e.category === "experiment");
+  }
+
+  /** Finds the documented experiment a `using <text>` line refers to: matches its patterns (e.g. `[script] reflection`) or its id. */
+  matchExperiment(text: string): DocEntry | undefined {
+    const wanted = text.trim().replace(/\s+/g, " ").toLowerCase();
+    if (!wanted) return undefined;
+    for (const entry of this.getExperiments()) {
+      if (entry.id.toLowerCase() === wanted) return entry;
+      for (const pattern of this.getCompiledPatterns(entry)) {
+        if (pattern.regex.test(wanted)) return entry;
+      }
+    }
+    return undefined;
   }
 }
