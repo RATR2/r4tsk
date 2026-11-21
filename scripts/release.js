@@ -6,7 +6,7 @@
  *   npm run release:dry        typecheck and package only, publishes nothing
  *
  * Flags: --dry-run  --yes (skip the confirmation)  --only vsce|ovsx  --allow-dirty
- * Tokens come from the environment or a git-ignored .env file (see .env.example), and are never printed or written anywhere:
+ * Tokens come from the environment or a git-ignored .env file, and are never printed or written anywhere:
  *   VSCE_PAT   VS Code Marketplace personal access token (publisher "r4tsk")
  *   OVSX_PAT   Open VSX access token (namespace "r4tsk" must already exist)
  */
