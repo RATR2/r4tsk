@@ -1,75 +1,83 @@
 #!/usr/bin/env python3
-"""Generates icon.png (256x256): "r4t.sk" in the pink gradient of the R4T banner on a dark rounded square, with a cursor bar under it.
+"""Generates icon.png (256x256): the R4T banner as a mosaic of rounded squares with .sk below it.
 
     python3 scripts/generate-icon.py
 
-Needs Pillow and a monospace bold font (DejaVu Sans Mono Bold is used when found).
+Needs Pillow. Brightness follows the banner characters: @ is brightest, ! medium, : dim.
 """
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
 
 SIZE = 256
-SCALE = 4  # drawn at 4x and scaled down for smooth edges
-BACKGROUND = (22, 20, 32)
+SCALE = 4
+BIG = SIZE * SCALE
 TOP = (255, 127, 249)
 BOTTOM = (253, 37, 222)
-TEXT = "r4t.sk"
-FONTS = [
-    "/usr/share/fonts/TTF/DejaVuSansMono-Bold.ttf",
-    "/usr/local/share/fonts/TTF/DejaVuSansMono-Bold.ttf",
-    "/usr/share/fonts/dejavu/DejaVuSansMono-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+BACKGROUND_TOP = (26, 22, 44)
+BACKGROUND_BOTTOM = (14, 12, 22)
+LEVELS = {"@": 255, "!": 170, ":": 95}
+
+BANNER = [
+    "    @@@@@@@        @@@   @@@@@@@  ",
+    "    @@@@@@@@      @@@@   @@@@@@@  ",
+    "    @@!  @@@     @@!@!     @@!    ",
+    "    !@!  @!@    !@!!@!     !@!    ",
+    "    @!@!!@!    @!! @!!     @!!    ",
+    "    !!@!@!    !!!  !@!     !!!    ",
+    "    !!: :!!   :!!:!:!!:    !!:    ",
+    "    :!:  !:!  !:::!!:::    :!:    ",
+    "    ::   :::       :::      ::    ",
+    "     :   : :       :::      :     ",
 ]
+LETTER_S = [" @@@@", "@@   ", " @@@ ", "   @@", "@@@@ "]
+LETTER_K = ["@@  @", "@@ @ ", "@@@  ", "@@ @ ", "@@  @"]
+SK = [(" " * 11) + (("@" if row == 4 else " ") + " " + LETTER_S[row] + " " + LETTER_K[row]) for row in range(5)]
 
 
-def load_font(size: int) -> ImageFont.FreeTypeFont:
-    for path in FONTS:
-        try:
-            return ImageFont.truetype(path, size)
-        except OSError:
-            continue
-    raise SystemExit("no monospace bold font found, edit FONTS in this script")
-
-
-def vertical_gradient(size: int) -> Image.Image:
-    image = Image.new("RGBA", (size, size))
+def vertical_gradient(a, b):
+    image = Image.new("RGB", (BIG, BIG))
     pixels = image.load()
-    for y in range(size):
-        color = tuple(round(TOP[i] + (BOTTOM[i] - TOP[i]) * y / size) for i in range(3)) + (255,)
-        for x in range(size):
+    for y in range(BIG):
+        color = tuple(round(a[i] + (b[i] - a[i]) * y / BIG) for i in range(3))
+        for x in range(BIG):
             pixels[x, y] = color
     return image
 
 
-def main() -> None:
-    big = SIZE * SCALE
-    image = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    ImageDraw.Draw(image).rounded_rectangle((0, 0, big - 1, big - 1), radius=big // 5, fill=BACKGROUND)
+def main():
+    lines = BANNER + [""] + SK
+    used = [c for line in lines for c, ch in enumerate(line) if ch in LEVELS]
+    first, last = min(used), max(used)
+    cell_w, cell_h = BIG * 0.0275, BIG * 0.046
+    left = (BIG - (last - first + 1) * cell_w) / 2
+    top = (BIG - len(lines) * cell_h) / 2
 
-    # largest font that keeps the text inside 80% of the width
-    font_size = big // 4
-    while True:
-        font = load_font(font_size)
-        box = ImageDraw.Draw(image).textbbox((0, 0), TEXT, font=font)
-        if box[2] - box[0] <= big * 0.8 or font_size < 10:
-            break
-        font_size -= 4
-    text_w, text_h = box[2] - box[0], box[3] - box[1]
+    image = vertical_gradient(BACKGROUND_TOP, BACKGROUND_BOTTOM).convert("RGBA")
+    layer = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    for row, line in enumerate(lines):
+        t = row / (len(lines) - 1)
+        color = tuple(round(TOP[i] + (BOTTOM[i] - TOP[i]) * t) for i in range(3))
+        for col in range(first, last + 1):
+            if col >= len(line) or line[col] not in LEVELS:
+                continue
+            x = left + (col - first) * cell_w
+            y = top + row * cell_h
+            draw.rounded_rectangle(
+                (x + cell_w * 0.1, y + cell_h * 0.1, x + cell_w * 0.9, y + cell_h * 0.9),
+                radius=cell_w * 0.25,
+                fill=color + (LEVELS[line[col]],),
+            )
+    image.alpha_composite(layer.filter(ImageFilter.GaussianBlur(BIG * 0.02)))
+    image.alpha_composite(layer)
 
-    mask = Image.new("L", (big, big), 0)
-    ImageDraw.Draw(mask).text(((big - text_w) / 2 - box[0], big * 0.46 - text_h / 2 - box[1]), TEXT, font=font, fill=255)
-    gradient = vertical_gradient(big)
-    gradient.putalpha(mask)
-    image.alpha_composite(gradient)
-
-    bar_w = text_w * 0.55
-    bar_y = big * 0.46 + text_h / 2 + big * 0.07
-    ImageDraw.Draw(image).rounded_rectangle(
-        ((big - bar_w) / 2, bar_y, (big + bar_w) / 2, bar_y + big * 0.04), radius=big // 100, fill=TOP
-    )
+    mask = Image.new("L", (BIG, BIG), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, BIG - 1, BIG - 1), radius=BIG // 5, fill=255)
+    rounded = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
+    rounded.paste(image, (0, 0), mask)
 
     out = Path(__file__).resolve().parent.parent / "icon.png"
-    image.resize((SIZE, SIZE), Image.LANCZOS).save(out)
+    rounded.resize((SIZE, SIZE), Image.LANCZOS).save(out)
     print(f"wrote {out}")
 
 
