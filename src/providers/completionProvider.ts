@@ -25,7 +25,7 @@ export class SkriptCompletionProvider implements vscode.CompletionItemProvider {
 
     const items: vscode.CompletionItem[] = [];
 
-    // `{@` - offer this file's options (they're file-scoped), and nothing else.
+    // `{@`, offer this file's options (they're file-scoped), and nothing else.
     const optionPrefix = /\{@([^{}]*)$/.exec(linePrefix);
     if (optionPrefix) {
       const partialStart = position.character - optionPrefix[1].length;

@@ -124,7 +124,7 @@ class PatternParser {
   }
 
   /**
-   * Parses up to (and consumes) `close`, splitting on top-level `|` - shared
+   * Parses up to (and consumes) `close`, splitting on top-level `|`, shared
    * by `(a|b)` and `[a|b]` (an optional group whose content has alternatives).
    * Nested groups are consumed whole by parseOne, so any `|` seen here is
    * this group's own.

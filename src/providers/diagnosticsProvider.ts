@@ -31,7 +31,7 @@ export class DiagnosticsManager {
 
   /**
    * For a call to a known addon function, checks the argument count against
-   * its signature - as a Warning only, and only when the signature is
+   * its signature, as a Warning only, and only when the signature is
    * reliable (every parameter parsed, no list-typed parameter) and no
    * same-named function exists in core Skript's docs (core wins). With
    * several addons defining the name, the call is fine if any signature fits.

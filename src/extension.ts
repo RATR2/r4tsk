@@ -138,7 +138,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const storedVersion = versionManager.getVersion();
     const autoDownload = config().get<boolean>("autoDownloadDocs", true);
     // applyVersion() is a no-op when auto-download is off (or a custom
-    // docsPath is set) - routing there in that case would silently drop
+    // docsPath is set), routing there in that case would silently drop
     // the change instead of applying it live like the setting promises.
     if (storedVersion && autoDownload && !getCustomDocsPath()) {
       void applyVersion(storedVersion);

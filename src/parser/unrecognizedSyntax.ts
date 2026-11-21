@@ -2,7 +2,7 @@
  * Conservative "Skript may not understand this line" detection. Pure text in,
  * line numbers out (no `vscode` dependency) so it can be tested standalone.
  *
- * Design goal: a LOW false-positive rate - when in doubt, don't flag. The docs
+ * Design goal: a LOW false-positive rate, when in doubt, don't flag. The docs
  * database can't resolve typed expressions, addon-defined syntax we haven't
  * loaded, or custom structures, so we only look at lines whose context we
  * understand and skip anything we can't judge.
@@ -71,7 +71,7 @@ function recognized(db: DocsDatabase, code: string): boolean {
 
 function checkRecognized(db: DocsDatabase, code: string): boolean {
   if (db.matchLine(code, STATEMENT_CATEGORIES, undefined, true)) return true;
-  // Compound conditions: "a is b and c is d" / "x or y" - judge each side.
+  // Compound conditions: "a is b and c is d" / "x or y", judge each side.
   const parts = splitTopLevel(code, /\s+(?:and|or)\s+/i);
   if (parts.length > 1) return parts.every((p) => !p.trim() || db.matchLine(p, STATEMENT_CATEGORIES, undefined, true) !== undefined);
   return false;

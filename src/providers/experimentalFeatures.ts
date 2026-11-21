@@ -13,7 +13,7 @@ import { ParsedDocument } from "../parser/types";
  * syntax entry to its experiment. The only machine-readable signal is the
  * description text of a few entries ("Requires the `using queues` experimental
  * feature flag to be enabled"), so only entries stating that explicitly -
- * with a feature that exists in the docs `experiments` list - are checked.
+ * with a feature that exists in the docs `experiments` list, are checked.
  */
 
 const REQUIRES_USING = /requires the\s+(?:<code>|`)using\s+([^<`]+?)(?:<\/code>|`)\s+experimental feature/i;

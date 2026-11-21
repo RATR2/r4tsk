@@ -139,8 +139,8 @@ export const ADDON_FUNCTIONS: AddonFunction[] = dedupeByName(RAW_ADDON_FUNCTIONS
 /**
  * Which addon functions count as "known", depending on what the user chose:
  * with addons selected (`r4tsk.addons`) only functions of those addons are
- * known - the bundled snapshot narrowed to them, plus whatever was converted
- * live from SkriptHub - so generic names like `and`, `pair` or `trail` from an
+ * known, the bundled snapshot narrowed to them, plus whatever was converted
+ * live from SkriptHub, so generic names like `and`, `pair` or `trail` from an
  * addon the user doesn't use no longer hide a real "undefined function"
  * warning. With nothing selected, the whole bundled list applies as before.
  */

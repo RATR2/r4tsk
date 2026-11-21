@@ -100,7 +100,7 @@ export class SkriptHubClient {
         return { fetchedAt: parsed.fetchedAt, entries: parsed.entries as SkriptHubSyntax[] };
       }
     } catch {
-      // missing or corrupt cache - treat as absent
+      // missing or corrupt cache, treat as absent
     }
     return undefined;
   }
