@@ -63,29 +63,14 @@ class PatternParser {
     if (c === "[") {
       this.i++;
       this.optionalDepth++;
-      const inner = this.parseSequence("]");
+      const inner = this.parseAlternatives("]");
       this.optionalDepth--;
-      this.i++; // consume ]
       return `(?:${inner})?`;
     }
 
     if (c === "(") {
       this.i++;
-      const alternatives: string[] = [];
-      let current = "";
-      while (this.i < this.text.length && this.text[this.i] !== ")") {
-        if (this.text[this.i] === "|" && !this.insideNestedGroup(current)) {
-          alternatives.push(current);
-          current = "";
-          this.i++;
-          continue;
-        }
-        current += this.parseOne();
-      }
-      alternatives.push(current);
-      this.i++; // consume )
-      const cleaned = alternatives.map((alt) => alt.replace(PARSE_MARK, ""));
-      return `(?:${cleaned.join("|")})`;
+      return `(?:${this.parseAlternatives(")")})`;
     }
 
     if (c === "%") {
@@ -138,14 +123,27 @@ class PatternParser {
     return escapeRegExp(c ?? "");
   }
 
-  /** Heuristic: are we still inside an unclosed nested `(` within `current`? Used so `|` only splits at this group's own top level. */
-  private insideNestedGroup(current: string): boolean {
-    let depth = 0;
-    for (const ch of current) {
-      if (ch === "(") depth++;
-      else if (ch === ")") depth--;
+  /**
+   * Parses up to (and consumes) `close`, splitting on top-level `|` - shared
+   * by `(a|b)` and `[a|b]` (an optional group whose content has alternatives).
+   * Nested groups are consumed whole by parseOne, so any `|` seen here is
+   * this group's own.
+   */
+  private parseAlternatives(close: string): string {
+    const alternatives: string[] = [];
+    let current = "";
+    while (this.i < this.text.length && this.text[this.i] !== close) {
+      if (this.text[this.i] === "|") {
+        alternatives.push(current);
+        current = "";
+        this.i++;
+        continue;
+      }
+      current += this.parseOne();
     }
-    return depth > 0;
+    alternatives.push(current);
+    this.i++; // consume close
+    return alternatives.map((alt) => alt.replace(PARSE_MARK, "")).join("|");
   }
 }
 
