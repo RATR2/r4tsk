@@ -465,6 +465,24 @@ export class DocsDatabase {
     return simplifyPattern(best, entry.category);
   }
 
+  private genericUids: string[] | undefined;
+
+  /** Entries with a pattern whose required (non-optional) literal words are all stopwords, so keyword lookup can never find them. */
+  private getGenericUids(): string[] {
+    if (!this.genericUids) {
+      const isGeneric = (p: string): boolean => {
+        let s = p;
+        for (let prev = ""; prev !== s; ) {
+          prev = s;
+          s = s.replace(/\[[^[\]]*\]/g, " ");
+        }
+        return extractKeywords(s).every((w) => STOPWORDS.has(w));
+      };
+      this.genericUids = this.entries.filter((e) => e.patterns.some(isGeneric)).map((e) => e.uid);
+    }
+    return this.genericUids;
+  }
+
   private getCompiledPatterns(entry: DocEntry): CompiledPattern[] {
     let compiled = this.compiledPatternCache.get(entry.uid);
     if (!compiled) {
@@ -587,7 +605,7 @@ export class DocsDatabase {
    * anywhere on the line. Candidates are narrowed via the keyword index
    * first so we're not compiling/testing all ~1200 patterns per line.
    */
-  matchLine(line: string, categoryFilter?: DocCategory[]): LineMatch | undefined {
+  matchLine(line: string, categoryFilter?: DocCategory[], includeGeneric = false): LineMatch | undefined {
     const commentStart = findCommentStart(line);
     const code = commentStart === -1 ? line : line.slice(0, commentStart);
 
@@ -608,6 +626,10 @@ export class DocsDatabase {
       for (const entry of this.byKeyword.get(word) ?? []) candidateUids.add(entry.uid);
       for (const entry of this.byNameLower.get(word) ?? []) candidateUids.add(entry.uid);
     }
+
+    // Patterns with no distinctive required word (e.g. comparisons: "%objects%
+    // (is|are) %objects%") never come up via the keyword index.
+    if (includeGeneric) for (const uid of this.getGenericUids()) candidateUids.add(uid);
 
     let best: LineMatch | undefined;
     let bestSpecificity = -1;
