@@ -41,6 +41,7 @@ r4tsk adds Skript (`.sk`) support to VS Code and VSCodium. It reads your scripts
 **Addons**
 - **SkriptHub picker.** Run "r4tsk: Add Addon Docs from SkriptHub..." and tick the addons you use (SkBee, Skript-Particle, skript-math, skript-reflect and more). Their syntax is merged live, no reload.
 - **Anything else.** Addons SkriptHub does not list, such as Skript-GUI, work through a `docs.json` from `/sk gen-docs` added with "r4tsk: Manage Addon Docs Files...".
+- **Server plugins folder.** If your workspace is inside a Skript server (a `plugins` folder next to `plugins/Skript`), r4tsk offers once to use the addons it finds there: jars that match SkriptHub addons, and the `docs.json` from `/sk gen-docs` if you copied it to `plugins/Skript/docs/`. Turn it off with `r4tsk.detectServerAddons`.
 - **Addon functions** like `dustOption` are known, so they are not reported as undefined. Add your own names to `r4tsk.knownFunctions`.
 
 **Looks good**
@@ -70,6 +71,7 @@ If NeoSkript or IntelliSkript is installed next to r4tsk you will get duplicate 
 | `r4tsk.autoDownloadDocs` | Download docs matching your Skript version |
 | `r4tsk.addons` | Addons picked from SkriptHub |
 | `r4tsk.additionalDocsPaths` | Extra `docs.json` files, for addons SkriptHub does not list |
+| `r4tsk.detectServerAddons` | Offer addons found in the server's plugins folder |
 | `r4tsk.knownFunctions` | Function names to treat as defined |
 | `r4tsk.crossVersionSuggestions` | The "you might be thinking of" hints |
 | `r4tsk.conflictCheck` | The warning about other Skript extensions |

@@ -18,6 +18,7 @@ import { DocsDownloadManager } from "./data/docsDownloadManager";
 import { CrossVersionIndex } from "./data/crossVersionIndex";
 import { SkriptVersionManager } from "./providers/skriptVersionManager";
 import { checkForConflicts } from "./providers/conflictCheck";
+import { checkServerPlugins } from "./providers/serverPluginsPrompt";
 import { registerManageAddonDocsCommand, registerSetDocsPathCommand } from "./providers/docsPathCommands";
 import { registerAddAddonDocsCommand } from "./providers/addonDocsCommand";
 import { AddonDocsManager } from "./data/addonDocsManager";
@@ -247,7 +248,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       index.forgetClosed(doc.uri);
       diagnostics.clear(doc.uri);
     }),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => void index.refreshWorkspaceFolders()),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      void index.refreshWorkspaceFolders();
+      void checkServerPlugins(context, addonManager);
+    }),
     vscode.window.onDidChangeActiveTextEditor((editor) => refreshDecorations(editor)),
     vscode.window.onDidChangeVisibleTextEditors((editors) => {
       for (const editor of editors) refreshDecorations(editor);
@@ -304,6 +308,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   void checkForConflicts(context);
+  void checkServerPlugins(context, addonManager);
   context.subscriptions.push(vscode.extensions.onDidChange(() => void checkForConflicts(context)));
 }
 

@@ -131,6 +131,11 @@
           "items": { "type": "string" },
           "description": "Names of Skript addons (as listed on SkriptHub, e.g. \"SkBee\", \"Skript-Particle\", \"skript-math\") whose syntax is merged into the docs for hover, matching and diagnostics. The syntax comes from the public SkriptHub API and is cached for a day in the extension's storage. Addon functions are only treated as known for the addons listed here (with none listed, the bundled list of popular addon functions applies). Applies live, no reload needed - or run \"r4tsk: Add Addon Docs from SkriptHub...\" to pick addons from a list."
         },
+        "r4tsk.detectServerAddons": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the workspace is inside a Skript server (a plugins folder next to plugins/Skript), offer to use the addons found there: jars matching SkriptHub addons, and the docs.json written by /sk gen-docs if it was copied to plugins/Skript/docs/. Asked once per folder."
+        },
         "r4tsk.conflictCheck": {
           "type": "boolean",
           "default": true,
