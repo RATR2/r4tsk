@@ -5,7 +5,7 @@
   "version": "1.0.5",
   "publisher": "r4tsk",
   "icon": "icon.png",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/RATR2/r4tsk"

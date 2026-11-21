@@ -8,6 +8,7 @@
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/r4tsk.r4tsk?style=for-the-badge&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=r4tsk.r4tsk)
 [![Open VSX](https://img.shields.io/open-vsx/v/r4tsk/r4tsk?style=for-the-badge&label=open%20vsx)](https://open-vsx.org/extension/r4tsk/r4tsk)
 [![Issues](https://img.shields.io/github/issues/RATR2/r4tsk?style=for-the-badge&logo=github)](https://github.com/RATR2/r4tsk/issues)
+[![License](https://img.shields.io/github/license/RATR2/r4tsk?style=for-the-badge&logo=github)](LICENSE)
 [![Editors](https://img.shields.io/badge/editors-vs%20code%20%7C%20vscodium-blue?style=for-the-badge)](#install)
 [![Status](https://img.shields.io/badge/status-in--development-yellow?style=for-the-badge)](#status)
 
@@ -109,7 +110,7 @@ Releases: a merge to `main` that changes the version in `package.json` runs the 
 
 ## License
 
-See [LICENSE](LICENSE). Publicly viewable and installable, all rights reserved.
+GPL-3.0-only. See [LICENSE](LICENSE).
 
 ---
 
