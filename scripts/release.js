@@ -53,7 +53,9 @@ function fail(message) {
 }
 
 function run(cmd, cmdArgs, { capture = false } = {}) {
-  const result = spawnSync(cmd, cmdArgs, { cwd: root, stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit", encoding: "utf8" });
+  // On Windows npm and npx are .cmd shims, which Node can't launch without a shell.
+  const shell = process.platform === "win32" && (cmd === "npm" || cmd === "npx");
+  const result = spawnSync(cmd, cmdArgs, { cwd: root, shell, stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit", encoding: "utf8" });
   if (result.error) fail(`could not run ${cmd}: ${result.error.message}`);
   return result;
 }
