@@ -3,3 +3,6 @@ dist/
 out/
 *.vsix
 test-fixtures/
+.env
+.env.*
+!.env.example

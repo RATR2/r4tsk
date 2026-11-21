@@ -6,7 +6,7 @@
  *   npm run release:dry        typecheck and package only, publishes nothing
  *
  * Flags: --dry-run  --yes (skip the confirmation)  --only vsce|ovsx  --allow-dirty
- * Tokens are read from the environment and never written anywhere:
+ * Tokens come from the environment or a git-ignored .env file (see .env.example), and are never printed or written anywhere:
  *   VSCE_PAT   VS Code Marketplace personal access token (publisher "r4tsk")
  *   OVSX_PAT   Open VSX access token (namespace "r4tsk" must already exist)
  */
@@ -16,6 +16,26 @@ const path = require("node:path");
 const readline = require("node:readline");
 
 const root = path.resolve(__dirname, "..");
+
+/**
+ * Loads KEY=VALUE lines from .env into process.env without overriding
+ * variables that are already set. Values are never printed.
+ */
+function loadEnvFile() {
+  const file = path.join(root, ".env");
+  if (!fs.existsSync(file)) return;
+  if (process.platform !== "win32" && (fs.statSync(file).mode & 0o077) !== 0) {
+    console.warn("release: .env is readable by other users, run: chmod 600 .env");
+  }
+  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || match[1] === undefined) continue;
+    let value = match[2];
+    if (/^(".*"|'.*')$/.test(value)) value = value.slice(1, -1);
+    if (value && process.env[match[1]] === undefined) process.env[match[1]] = value;
+  }
+}
+loadEnvFile();
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
