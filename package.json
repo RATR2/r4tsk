@@ -4,6 +4,7 @@
   "description": "Skript language support: syntax highlighting, hover call-signature preview, autocomplete, diagnostics, go-to-definition and a bundled dark theme.",
   "version": "1.0.5",
   "publisher": "r4tsk",
+  "icon": "icon.png",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",

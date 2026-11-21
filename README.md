@@ -1,127 +1,118 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/RATR2/r4tsk/main/icon.png" alt="r4tsk icon" width="128" height="128">
+
 # r4tsk
 
-Skript language support for VS Code / VSCodium.
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/r4tsk.r4tsk?style=for-the-badge&logo=visualstudiocode&label=marketplace)](https://marketplace.visualstudio.com/items?itemName=r4tsk.r4tsk)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/r4tsk.r4tsk?style=for-the-badge&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=r4tsk.r4tsk)
+[![Open VSX](https://img.shields.io/open-vsx/v/r4tsk/r4tsk?style=for-the-badge&label=open%20vsx)](https://open-vsx.org/extension/r4tsk/r4tsk)
+[![Issues](https://img.shields.io/github/issues/RATR2/r4tsk?style=for-the-badge&logo=github)](https://github.com/RATR2/r4tsk/issues)
+[![Editors](https://img.shields.io/badge/editors-vs%20code%20%7C%20vscodium-blue?style=for-the-badge)](#install)
+[![Status](https://img.shields.io/badge/status-in--development-yellow?style=for-the-badge)](#status)
 
-## Features
+> Skript language support that checks your scripts against Skript's real syntax, not a guess.
 
-- **Syntax highlighting** for `.sk` files (functions, commands, events, variables, types, effects).
-- **Minecraft/Bukkit chat color codes** inside strings are rendered live using their real in-game color/style, following actual chat rendering rules (a color code resets formatting, format codes stack, `&r` resets both):
-  - Legacy codes `&0`-`&f` (color) and `&l/&m/&n/&o` (bold/strikethrough/underline/italic), e.g. `"&cRed &lbold text"`.
-  - Hex tags `<#rrggbb>` (and the double-hash `<##rrggbb>` variant some addons use), using the *exact* color parsed out of the tag itself, e.g. `"<#f18d8d>this text is actually that pink"`.
-  - This part is implemented as live editor decorations (not just static theme colors), since an arbitrary hex value can't be baked into a fixed color theme.
-- **Color picker support for `<#rrggbb>`/`<##rrggbb>` tags** — VS Code's built-in color swatch/picker only recognizes a bare `#rrggbb` with nothing around it by default, so it never matched Skript's `<...>`-wrapped hex tags. A `DocumentColorProvider` is registered for `.sk` files so the swatch shows up next to either tag form and picking a new color rewrites it correctly (including the brackets, and preserving whichever of `#`/`##` the original tag used).
-- **R4TSK Dark theme** — same UI color palette as VS Code's built-in "Dark 2026" theme, with hand-authored syntax colors for Skript instead of the default ones.
-- **Hover call-signature preview** — hover over a function call site, e.g. `functionname("123", true, {object})`, and see the function it resolves to:
-  ```
-  functionname(str: string, bool: boolean, obj: object) :: boolean
-  ```
-  plus a parameter-by-parameter breakdown of the actual arguments passed, the return type, and the function's doc comment.
-- **JavaDoc-style doc comments** — write `#` comments above a function using `@param`/`@return`/`@deprecated` tags and they're parsed structurally, then shown in hover, autocomplete, and signature help (including a per-parameter description column):
-  ```
-  # Gives a welcome kit to a player.
-  #
-  # @param str the message to show the player
-  # @param bool whether to also play a sound
-  # @param obj the target to give the kit to
-  # @return whether the kit was given successfully
-  # @deprecated use giveKit() instead
-  function functionname(str: string, bool: boolean, obj: object) :: boolean:
-  ```
-  A `@param` that doesn't match an actual parameter name is flagged as a diagnostic (catches doc/signature drift), and so is a `@return` tag on a function that doesn't actually declare a return type.
-- **Colored doc/annotation tags** in comments, live and user-configurable (not baked into the static theme):
-  - `@param` `#1c91ff`, `@return`/`@returns` `#731cff`, and `@deprecated` `#ffd21c` color just the tag word itself, not the text that follows.
-  - General annotation markers, usable in any `#` comment: `TODO` `#1c6fff` and `WARN` `#ffd21c` color just the tag word; `!`/`important` `#ff0000` (interchangeable - use whichever reads better) colors the whole rest of the line, since it's meant to flag the entire note as urgent. No colon required, e.g. `# TODO clean this up` or `# ! don't touch this without asking`.
-  - Run **"r4tsk: Configure Annotation Colors"** from the Command Palette to open Settings pre-filtered to `r4tsk.annotationColors.*`, where both foreground *and* background can be changed per tag (e.g. `r4tsk.annotationColors.warn.background`). This is implemented as live editor decorations (like the hex-color feature above) rather than static theme colors, so it applies under any color theme and updates immediately when a setting changes - no reload required.
-- **Custom colored patterns** - color any regex pattern you define, anywhere in a `.sk` file (not restricted to comments), via `r4tsk.customPatterns`. Handy for something like an ASCII-art banner comment block at the top of your scripts. Each entry is `{ pattern, color, background?, flags?, bold?, italic? }`; matching runs across the whole document (the `g` flag is always added automatically), so a single pattern can span multiple lines. Run **"r4tsk: Configure Custom Colored Patterns"** to edit the list. Example, for a banner made of `@`/`!`/`:` characters:
-  ```json
-  "r4tsk.customPatterns": [
-    {
-      "pattern": "^#[ \\t]*[@!:][@!: \\t]*$",
-      "flags": "m",
-      "color": "#ff69b4",
-      "bold": true
-    }
-  ]
-  ```
-  This matches any comment line that (after the `#`) consists only of `@`/`!`/`:` characters and whitespace, so normal prose comments are left alone.
-  - r4tsk also ships a **built-in signature banner** (`src/data/signatureBanner.ts`) - a fixed, non-configurable set of patterns that always renders the author's own ASCII-art header comment in its matching gradient, regardless of the viewer's own `r4tsk.customPatterns` settings. So anyone who opens a script bearing that banner, using this build of the extension, sees it colored the same way it looks in-game. It's added on top of (not instead of) whatever the user configures themselves.
-- **Autocomplete** for user-defined functions (workspace-wide), a curated core of vanilla Skript events/effects/conditions/types, and already-used variable names.
-- **Experimental features (`using <feature>`)**: `using` lines are recognized. Hover shows the feature's documented description, completion after `using ` offers the experiments listed in your Skript docs, an unrecognized feature name gets an Information-level "Unknown experimental feature" notice, and syntax that documents "Requires the `using X` experimental feature flag" (currently the queue expressions) gets a Warning when the script lacks `using X`: "You're missing the experimental feature `X`. Add `using X` at the top of the script." Both can be turned off with `r4tsk.diagnostics.experimentalNotice`. docs.json has no structured syntax-to-experiment link, so other experimental syntax (e.g. equippable components) is not checked.
-- **`local function` support** - recognized as its own header (not treated as a variant of `function`), and its scoping is enforced correctly everywhere: calls only resolve to it from within its own script, autocomplete only offers it there too, and the "duplicate function" diagnostic won't flag two unrelated local functions in different files that happen to share a name (only a real same-file collision, or two *global* functions colliding across files, are actual conflicts).
-- **Diagnostics**: undefined function calls (with cross-version suggestions), argument count mismatches, duplicate function definitions, stale `@param` doc tags, `@return` documented on a function with no declared return type, deprecated syntax usage, and lines Skript may not understand (see below).
-  - Only bare `identifier(...)` calls count as a Skript function call - `.method(...)` (a dot-chain method call, as used by Java-interop addons like Skript-Reflect, e.g. `BetterModel.model(...)`, `{_opt}.isEmpty()`) is recognized as *not* a Skript function call and skipped, rather than being flagged as an undefined function.
-  - The `(` also has to immediately follow the name with no space - `formatted (join {_pages::*} with " ")` or `set {_index} to (({_page}-1)*{@pageSize})` are a keyword immediately followed by a parenthesized group (very common in real code), not a call to a function named "formatted"/"to". A real function call is always written with no space before the paren, same as most languages.
-- **Go to definition** / **find references** for function calls.
-- **Options** (`options:` block) - go to definition, hover (shows the value), `{@` autocomplete and outline entries for `{@name}` references, plus an "Undefined option" warning (under `r4tsk.diagnostics.enable`) for a name the same script doesn't define. Options are file-scoped, so only the current file's block is used; `{@name}` inside `#` comments is ignored.
-- **Signature help** (parameter hints while typing a call, including per-parameter doc text).
-- **Document & workspace symbols** (outline view, `Ctrl+T` search) for functions, commands and events.
-- **Real docs lookup, from the Skript wiki's own data - with an actual pattern-matching engine, not just keyword guessing.** `data/docs.json` is a bundled snapshot from [SkriptLang/skript-docs](https://github.com/SkriptLang/skript-docs) (1200+ real conditions/effects/expressions/events/types/functions/structures/sections, each with description, `since` version, deprecation status and examples). `src/parser/patternCompiler.ts` compiles Skript's real syntax pattern language - `[optional]`, `(a|b|c)`, `%type%`/`%-type%`, `<regex>` - into JS `RegExp`s, so hovering a *line* of code identifies exactly which syntax element governs it and which argument text fills which `%placeholder%`, instead of just noticing a keyword happens to appear somewhere on the line. This fixed real bugs the old word-based approach had (e.g. `contains` on `{_inv} contains {_item}` used to resolve to an unrelated entry; `broadcast "hello world"` picked up "world" from inside the string and matched the wrong expression entirely). Word-based lookup (`lookupWord`) is kept as a fallback for hovering a bare identifier with no full-line match.
-  - Known limitation: when a pattern has two *wildcard* alternatives back-to-back with no literal anchor between them (e.g. Teleport's `%entities% (to|%direction%) %location%`), regex backtracking can't always tell which one is semantically intended and may attribute argument text to the wrong slot - it still correctly identifies *which* effect/condition/expression matched, just not always the precise per-argument breakdown. A fully correct fix needs real type-aware parsing, which is out of scope.
-  - Hovering an `on X:` event header specifically only matches against the `event` category (not the full docs database), so a word that happens to also appear in an unrelated effect/expression's pattern (e.g. "create" in the Lightning effect's `(create|strike) lightning...`) can never make a fake event look valid. An event phrase that doesn't match any real event shows a clear warning instead.
-  - Some Skript patterns build a word out of directly-adjacent choice groups rather than a plain literal, e.g. the Explode event's `explo(d(e|ing)|sion)` for "explode"/"exploding"/"explosion" - these are expanded into their real surface forms for lookup purposes, so `on explode:` and friends match correctly instead of only ever seeing meaningless fragments like "explo"/"d"/"sion".
-  - docs.json's `id` field is the underlying Skript implementation class, not a unique per-entry identifier - over a hundred distinct events (e.g. "On Explode", "On Projectile Hit") all share the generic id `SimpleEvent`, since they don't need their own dedicated class. Entries get their own internally-generated unique key at load time so candidate resolution and pattern caching can't collide between them; the docs-site link also derives events' anchors from a slug of their name rather than that shared id, matching how the real site links them (`events.html#explode`, not `events.html#SimpleEvent`).
-- **Auto-downloads the docs.json matching your Skript version.** skript-docs keeps an archive of every released version at `docs/archives/<version>/docs.json`. Once you tell r4tsk your Skript version (see below), it resolves the closest matching archive, downloads it in the background, and caches it under VS Code's global storage - no manual download needed. Falls back to the bundled snapshot if offline or the exact version isn't available.
-  - Covers three generations of the schema: the modern format (Skript 2.13.0+), an older intermediate format (2.10.0-2.12.x, auto-adapted), and gracefully falls back to the nearest supported version for the legacy format (Skript 2.6.4-2.9.5, and 2.10.2) - those older archives use singular-string fields and are sometimes not even valid JSON, so they aren't parsed.
-  - Prefer to manage this yourself? Point `r4tsk.docsPath` at your own downloaded/generated `docs.json` (e.g. built from your exact server + addon jars via Skript's `/sk gen-docs` command) and auto-download is skipped entirely - run **"r4tsk: Set Core Docs File..."** to pick the file with a native file browser instead of typing/pasting a path, or clear it from the same command. Set `r4tsk.autoDownloadDocs` to `false` to just stay on the bundled snapshot without network access. Applies live, no reload needed.
-- **"You might be thinking of X from Skript Y."** In the background, r4tsk also downloads one docs.json checkpoint per supported Skript minor version (2.10 through the latest). If a keyword or function isn't found in *your* configured version's docs, but exists in a nearby version's, hover and the "undefined function" diagnostic will point you at it - e.g. if something got renamed or added/removed between versions. Disable with `r4tsk.crossVersionSuggestions`.
-- **Deprecated-syntax warnings**, scanned directly in your code (not just on hover): every line (excluding comments, string content, and `{variable}` names) is checked for a real match of a deprecated pattern, anywhere within the line - including embedded as a sub-argument of something else, e.g. `%player%'s display name` inside a `broadcast` effect. If it matches, you get a Warning: *`'X' is deprecated in Skript Y. Please use the newer alternative described in its docs.`*
-  - This is substring pattern-matching (via the same compiler described below), not a bare keyword scan - a shared word alone isn't enough. E.g. "display" is also a literal entity type (`item display`) and an unrelated property (`display scale`), neither of which have anything to do with the deprecated "display name" expression; only text that actually matches its pattern (`display` immediately followed by `name[s]`) is flagged.
-  - Skript sometimes reorganizes a feature (e.g. an old condition folded into a newer "property" system) with identical syntax - the docs mark the old entry deprecated for one version, then it's gone entirely from the next, with a non-deprecated same-named replacement. Since that's not something to act on, the warning is suppressed if the same name exists, non-deprecated, in a *newer* checkpoint version (checked via the cross-version index above). Only older non-deprecated appearances are ignored, since every deprecated feature was trivially non-deprecated at some earlier point - that direction doesn't mean anything.
-  - Skript 2.13 also reorganized several older multi-concept expressions into small standalone "properties" *within the same version* - e.g. the old "Name / Display Name / Tab List Name" expression became two separate, non-deprecated properties, "name" and "display name" (`name of %thing%`/`%thing%'s name`, same syntax convention that predates the property system). docs.json doesn't give properties their own patterns (they're closer to metadata), so their call syntax is synthesized from their name specifically to catch this: a deprecated match is suppressed if it's also exactly covered by a non-deprecated property. This is scoped tightly enough to still correctly flag the parts of an old expression that *didn't* get a property replacement - e.g. `'s nick name`/`'s custom name`/`'s chat name` (no such property exists) still warn, only `'s name`/`'s display name` are suppressed.
-  - (An earlier version of this also tried to note "this feature was updated in version X, and you have it" using entries' multi-segment `since` fields, but that turned out to be more noise than signal in practice - most such version bumps are ancient, so it fired on nearly every use of common effects like `set`/`add`/`remove`. Removed.)
-- **Skript version tracking** - the first time you open a `.sk` file, r4tsk asks what version of Skript you're running and remembers it. A status bar item at the bottom (`Skript: x.y.z`) shows the current value and can be clicked anytime to change it (or run **"r4tsk: Set Skript Version"** from the Command Palette). If your version's major.minor doesn't match the currently active docs database, the status bar item turns into a warning so you know hover/completion info might not perfectly apply.
-- **Flags lines Skript may not understand.** Statements inside events, functions and command triggers are matched against the loaded docs (core plus any addon docs); a line that matches no effect, condition or section is reported as "Skript may not understand this line." It is deliberately conservative: comments, `options`/`using`/`variables` blocks, command settings, function calls, lines with `%` expressions, variable-only lines and the bodies of unrecognized sections are skipped, and nothing is reported when no docs are loaded. Syntax from an addon you haven't loaded docs for (see below) will be flagged, so add the addon's docs or turn this down. Set `r4tsk.diagnostics.unrecognizedSyntax` to `off`, `information` (default) or `warning`; it also respects `r4tsk.diagnostics.enable`.
-- **Warns about other Skript extensions.** NeoSkript and IntelliSkript also handle `.sk` files, and running one next to r4tsk gives duplicate completions, hovers and diagnostics. r4tsk shows a one-time warning if it finds one installed (turn it off with `r4tsk.conflictCheck`).
-- **Addon functions don't warn as undefined.** Functions from SkBee, Skript-Particle, skript-math and a few others (e.g. `dustOption`) are bundled from the SkriptHub syntax list, so calling them isn't reported as an undefined function. Once you pick addons with `r4tsk.addons` (below), only those addons' functions count as known, so generic names like `and`, `pair` or `trail` from an addon you don't use no longer hide a real undefined-function warning; the bundled list is the fallback only while no addon is selected. Calls to known addon functions get an argument-count warning (never an error) when the signature is unambiguous - list-typed parameters such as `numbers` are not counted, and core Skript's own function entries take precedence over an addon function of the same name. For anything else, list the names in `r4tsk.knownFunctions`.
-- **Addon syntax from SkriptHub: "r4tsk: Add Addon Docs from SkriptHub...".** Pick the addons you use (SkBee, Skript-Particle, skript-math, skript-reflect, ... - multi-select, with your current choice pre-ticked) and their syntax is merged into the docs live, without a reload. The choice is saved in `r4tsk.addons` (an array of addon names; you can also edit it by hand) and re-applied on every start. The data comes from the public SkriptHub API (`skripthub.net/api/v1`, read-only, nothing about you or your project is sent); the ~8 MB syntax list is cached in the extension's global storage for a day, and when SkriptHub can't be reached the older cache is used (with no cache at all, the command reports that it needs a connection). Patterns are converted to core docs notation: multi-line pattern lists are split, `%*type%`/`%~type%`/`%type@1%` modifiers and escaped brackets are normalized, and entries get the addon name and its compatible version. What can't be converted is skipped, not guessed: patterns with unbalanced brackets or `%`, unclosed or invalid `<regex>` fragments, or no literal text (a handful of the ~7,500 SkriptHub entries). SkriptHub only lists addons someone has submitted - addons it doesn't know (e.g. Skript-GUI) still need a `/sk gen-docs` file, below. Descriptions are SkriptHub's, and entries carry no examples.
-- **Files outside the open workspace are no longer counted for duplicate functions.** A script from an unrelated project that VS Code happened to open used to be indexed and could trigger "Duplicate function" warnings; it is now diagnosed on its own only.
-- **Addon support for addons SkriptHub doesn't cover (Skript-GUI, etc.), via `r4tsk.additionalDocsPaths`.** Skript's own `/sk gen-docs` command generates a `docs.json` covering *every addon installed on the server it runs on*, in the exact same schema core Skript's docs use. So:
-  1. Spin up a throwaway/dev server with Skript + whichever addons you use (SkBee, Skript-GUI, etc.) installed.
-  2. Run `/sk gen-docs` - this produces `plugins/Skript/docs/docs.json`, containing vanilla Skript's syntax *and* every installed addon's.
-  3. Copy that file somewhere r4tsk can read it, then run **"r4tsk: Manage Addon Docs Files..."** from the Command Palette - it lists what's currently added (with a trash icon to remove any) and an "Add a docs.json file..." entry that opens a native file browser, so there's no need to hand-edit `r4tsk.additionalDocsPaths` as a raw settings array (you still can, if you prefer - it's the same underlying setting, an array so you can point at multiple files/addons separately if you'd rather keep them apart).
-  4. It's merged into the same pattern-matching engine and lookup index as your core Skript docs - hover, diagnostics, and everything else described above work on addon syntax exactly the same as vanilla Skript's. Applies live, no reload needed.
-  - Two reliability fixes here: an invalid/unparseable `r4tsk.docsPath` file used to be silently masked whenever at least one addon file *did* parse (the merge would quietly succeed using only the addon's syntax, dropping vanilla Skript entirely, since nothing distinguished "the core file failed" from "everything's fine"); the core source is now validated on its own before merging, so a bad core file correctly falls back to the bundled docs instead. Separately, changing `r4tsk.additionalDocsPaths`/`r4tsk.docsPath` while `r4tsk.autoDownloadDocs` is off used to silently do nothing despite "applies live" - fixed by only routing through the auto-download path when auto-download is actually enabled.
-  
-  This also means "currently unknown" addons aren't a special case to add support for one at a time - any addon that installs cleanly into a Skript server and shows up in `/sk gen-docs`'s output is supported automatically once its docs.json is added this way.
+If you find any issues, please report them [here](https://github.com/RATR2/r4tsk/issues)
 
-## Scope note
+</div>
 
-The built-in syntax database (`src/data/skriptSyntax.ts`) is a small curated core used for
-completion snippets; the real depth comes from the (auto-downloaded, version-matched)
-`docs.json` and the pattern-matching engine described above. The compiler handles the vast
-majority of real patterns correctly (validated against dozens of real conditions/effects/
-expressions), but it's still regex-based rather than a true recursive-descent parser with type
-inference, so a handful of patterns with ambiguous wildcard-vs-wildcard choices, or multiple
-generic same-shaped expressions competing for the same phrasing (e.g. several different "name
-of X" expressions across different types), can occasionally resolve to a plausible-but-not-exact
-entry. Autocomplete still uses the small curated list rather than the full docs database/pattern
-engine - a good next step if it's ever revisited.
+---
+
+## What is this
+
+r4tsk adds Skript (`.sk`) support to VS Code and VSCodium. It reads your scripts, matches every line against the real Skript docs for your version, and tells you what a line is, what it needs, and when Skript will probably not understand it. Functions, doc comments, options, chat colors and addons are understood too.
+
+**Understands your scripts**
+- **Diagnostics.** Undefined functions, wrong argument counts, duplicate functions, stale doc tags, deprecated syntax, and lines Skript may not understand.
+- **Hover, signature help and autocomplete** for your own functions, events, effects, conditions, types and variables.
+- **Go to definition and find references** for functions and `{@options}`, plus an outline and workspace symbol search.
+- **Doc comments.** Write `@param`, `@return` and `@deprecated` above a function and they show up in hover, completion and signature help. Tags that do not match the signature are flagged.
+- **`local function`** is scoped correctly: calls, completion and duplicate checks all respect it.
+- **Options.** `{@name}` jumps to its entry in the `options:` block, shows its value on hover, completes after `{@`, and warns when the name does not exist in that script.
+- **Experimental features.** Using syntax that needs an experiment without its `using <feature>` line warns that you are missing the feature. Hover and completion work on `using` lines.
+
+**Knows Skript's real syntax**
+- **Docs from the Skript wiki's own data.** A bundled snapshot of [skript-docs](https://github.com/SkriptLang/skript-docs) (1200+ events, effects, conditions, expressions, types, functions and structures) is matched with a real pattern engine, not keyword guessing.
+- **Matches your Skript version.** Tell r4tsk which version you run and it downloads the closest docs, cached in the background. Use `r4tsk.docsPath` for a file you generated yourself with `/sk gen-docs`.
+- **"You might be thinking of X from Skript Y."** If a name does not exist in your version but does in a nearby one, hover and the undefined-function warning say so.
+- **Unrecognized lines.** A statement that matches no effect, condition or section is reported as "Skript may not understand this line". It is conservative on purpose and skips anything it cannot judge.
+
+**Addons**
+- **SkriptHub picker.** Run "r4tsk: Add Addon Docs from SkriptHub..." and tick the addons you use (SkBee, Skript-Particle, skript-math, skript-reflect and more). Their syntax is merged live, no reload.
+- **Anything else.** Addons SkriptHub does not list, such as Skript-GUI, work through a `docs.json` from `/sk gen-docs` added with "r4tsk: Manage Addon Docs Files...".
+- **Addon functions** like `dustOption` are known, so they are not reported as undefined. Add your own names to `r4tsk.knownFunctions`.
+
+**Looks good**
+- **Chat colors, live.** `&c`, `&l`, `<#rrggbb>` and `<##rrggbb>` inside strings are drawn in their real in-game color and style, with a color picker for hex tags.
+- **Colored annotations.** `@param`, `@return`, `@deprecated`, `TODO`, `WARN` and `!` in comments, with colors you can change.
+- **Custom colored patterns.** Color any regex you define, anywhere in a script.
+- **R4TSK Dark**, a theme with hand-picked Skript colors.
+
+## Install
+
+Search for **r4tsk** in the Extensions view, or install it from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=r4tsk.r4tsk) or [Open VSX](https://open-vsx.org/extension/r4tsk/r4tsk). VSCodium reads Open VSX. Needs VS Code 1.85 or newer.
+
+1. Open any `.sk` file. r4tsk asks which Skript version you run, and remembers it. The status bar shows it and you can click it to change it.
+2. Optional: run "r4tsk: Add Addon Docs from SkriptHub..." and pick your addons.
+3. Optional: open [`examples/example.sk`](examples/example.sk) to see every feature in one script.
+
+If NeoSkript or IntelliSkript is installed next to r4tsk you will get duplicate completions and diagnostics, so r4tsk warns once. Turn that off with `r4tsk.conflictCheck`.
+
+## Settings and commands
+
+| Setting | What it does |
+|---|---|
+| `r4tsk.diagnostics.enable` | Turns all diagnostics on or off |
+| `r4tsk.diagnostics.unrecognizedSyntax` | `off`, `information` or `warning` for lines Skript may not understand |
+| `r4tsk.diagnostics.experimentalNotice` | The missing `using <feature>` warning |
+| `r4tsk.docsPath` | Use your own core `docs.json` instead of the auto-downloaded one |
+| `r4tsk.autoDownloadDocs` | Download docs matching your Skript version |
+| `r4tsk.addons` | Addons picked from SkriptHub |
+| `r4tsk.additionalDocsPaths` | Extra `docs.json` files, for addons SkriptHub does not list |
+| `r4tsk.knownFunctions` | Function names to treat as defined |
+| `r4tsk.crossVersionSuggestions` | The "you might be thinking of" hints |
+| `r4tsk.conflictCheck` | The warning about other Skript extensions |
+| `r4tsk.annotationColors.*` | Foreground and background per annotation tag |
+| `r4tsk.customPatterns` | Regex patterns to color, `{ pattern, color, background?, flags?, bold?, italic? }` |
+
+Commands, from the Command Palette: Set Skript Version, Set Core Docs File, Add Addon Docs from SkriptHub, Manage Addon Docs Files, Configure Annotation Colors, Configure Custom Colored Patterns.
+
+## Status
+
+In development. It works on real scripts, but it is regex-based and is not a full parser with type inference.
+
+- A few patterns with two wildcards back to back can resolve to a plausible but not exact entry.
+- Only a few syntax entries state which experimental feature they need, so the missing-feature warning covers little for now.
+- Autocomplete for events, effects and conditions uses a small curated list, not the whole docs database.
 
 ## Development
 
-Requires Node.js 18+.
+Needs Node.js 18 or newer.
 
 ```bash
 npm install
-npm run typecheck   # tsc --noEmit
-npm run build        # bundle with esbuild -> dist/extension.js
-npm run watch         # rebuild on change, for use with F5 (Extension Development Host)
-npm run package       # produce a .vsix via vsce
-npm run release:dry    # typecheck + package, publishes nothing
-npm run release        # typecheck, package, confirm, then publish to the VS Code Marketplace and Open VSX
+npm run typecheck     # tsc --noEmit
+npm run check:parser  # parser and diagnostics checks
+npm run build         # bundle with esbuild -> dist/extension.js
+npm run watch         # rebuild on change, for F5 (Extension Development Host)
+npm run package       # produce a .vsix
+npm run release:dry   # typecheck and package, publishes nothing
+npm run release       # typecheck, package, confirm, publish to the Marketplace and Open VSX
 ```
 
-**Publishing from GitHub:** the `Publish` workflow (runs when a merge to `main` changes the version in `package.json`, or manually from the Actions tab) publishes to the VS Code Marketplace with Trusted Publishing, so no Marketplace token is stored. Set it up once with a policy on the publisher's Trusted Publishing page: owner `RATR2`, repository `r4tsk`, workflow `publish.yml`, no environment. Add an `OVSX_PAT` repository secret if it should also publish to Open VSX.
+Press F5 in VS Code or VSCodium to try it, or install the built `.vsix` with "Install from VSIX". The icon is generated by `python3 scripts/generate-icon.py` (needs Pillow).
 
-`npm run release` reads tokens from the environment (`VSCE_PAT` for the Marketplace, `OVSX_PAT` for Open VSX), refuses to run with uncommitted changes, and asks before publishing. Flags: `--only vsce|ovsx`, `--yes`, `--allow-dirty`.
-
-To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
-built `r4tsk-1.0.5.vsix` via the "Install from VSIX" command.
-
-Open [`examples/example.sk`](examples/example.sk) for a single script touching every feature above
-(doc comments, annotations, hover, `local function` scoping, color codes, diagnostics, and more).
-[`examples/doc-comments-example.sk`](examples/doc-comments-example.sk) is a smaller, focused example of just the doc-comment system.
+Releases: a merge to `main` that changes the version in `package.json` runs the `Publish` workflow, which publishes to the Marketplace with Trusted Publishing (no stored token) and to Open VSX with the `OVSX_PAT` repository secret. It can also be run by hand from the Actions tab. `npm run release` does the same locally with `VSCE_PAT` and `OVSX_PAT` from the environment.
 
 ## License
 
-Copyright © 2026 RATR2. All rights reserved. See [LICENSE](LICENSE).
+See [LICENSE](LICENSE). Publicly viewable and installable, all rights reserved.
+
+---
+
+<div align="center">
+
+Thanks, R4T Out.
+
+</div>
