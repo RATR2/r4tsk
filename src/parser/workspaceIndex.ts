@@ -4,6 +4,14 @@ import { FunctionInfo, ParsedDocument } from "./types";
 
 export class WorkspaceIndex {
   private readonly docs = new Map<string, ParsedDocument>();
+  /**
+   * Documents opened from outside every workspace folder (e.g. a file from an
+   * unrelated project restored in an editor tab). They are parsed so they can
+   * be diagnosed on their own, but kept out of `docs` so their functions don't
+   * leak into other projects' duplicate/undefined-function checks, completion
+   * and go-to-definition.
+   */
+  private readonly external = new Map<string, ParsedDocument>();
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.onDidChangeEmitter.event;
 
@@ -26,20 +34,36 @@ export class WorkspaceIndex {
   indexDocument(document: vscode.TextDocument): void {
     if (document.languageId !== "skript") return;
     const key = document.uri.toString();
-    const existing = this.docs.get(key);
+    const target = this.isInWorkspace(document.uri) ? this.docs : this.external;
+    const existing = target.get(key);
     if (existing && existing.version === document.version) return;
-    this.docs.set(key, parseDocument(document));
+    target.set(key, parseDocument(document));
     this.onDidChangeEmitter.fire();
   }
 
+  /** With no workspace folder open at all, every file counts as in-workspace (single-file mode). */
+  private isInWorkspace(uri: vscode.Uri): boolean {
+    if (!vscode.workspace.workspaceFolders?.length) return true;
+    return vscode.workspace.getWorkspaceFolder(uri) !== undefined;
+  }
+
   removeDocument(uri: vscode.Uri): void {
-    if (this.docs.delete(uri.toString())) {
+    const key = uri.toString();
+    if (this.docs.delete(key) || this.external.delete(key)) {
+      this.onDidChangeEmitter.fire();
+    }
+  }
+
+  /** Drops an out-of-workspace document once it's closed; workspace documents stay indexed. */
+  forgetExternal(uri: vscode.Uri): void {
+    if (this.external.delete(uri.toString())) {
       this.onDidChangeEmitter.fire();
     }
   }
 
   getParsed(uri: vscode.Uri): ParsedDocument | undefined {
-    return this.docs.get(uri.toString());
+    const key = uri.toString();
+    return this.docs.get(key) ?? this.external.get(key);
   }
 
   getAllParsed(): ParsedDocument[] {
@@ -55,7 +79,8 @@ export class WorkspaceIndex {
   findFunctions(name: string, fromUri?: vscode.Uri): FunctionInfo[] {
     const lower = name.toLowerCase();
     const results: FunctionInfo[] = [];
-    for (const doc of this.docs.values()) {
+    const searched: Iterable<ParsedDocument> = this.docsVisibleFrom(fromUri);
+    for (const doc of searched) {
       for (const fn of doc.functions) {
         if (fn.name.toLowerCase() !== lower) continue;
         if (fn.isLocal && fn.uri.toString() !== fromUri?.toString()) continue;
@@ -63,6 +88,14 @@ export class WorkspaceIndex {
       }
     }
     return results;
+  }
+
+  /** Workspace documents, plus `fromUri`'s own document when it lives outside the workspace (so a lone file still resolves its own functions). */
+  private docsVisibleFrom(fromUri?: vscode.Uri): ParsedDocument[] {
+    const docs = Array.from(this.docs.values());
+    const own = fromUri ? this.external.get(fromUri.toString()) : undefined;
+    if (own) docs.push(own);
+    return docs;
   }
 
   /** First matching function visible from `preferUri`, preferring that same document if it defines one. */

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { WorkspaceIndex } from "../parser/workspaceIndex";
 import { findBuiltinFunction } from "../data/skriptSyntax";
+import { findAddonFunction } from "../data/addonFunctions";
 import { DocsHolder } from "../data/docsHolder";
 import { CrossVersionIndex } from "../data/crossVersionIndex";
 import { DocsDatabase } from "../data/docsDatabase";
@@ -19,6 +20,12 @@ export class DiagnosticsManager {
     return vscode.workspace.getConfiguration("r4tsk").get<boolean>("diagnostics.enable", true);
   }
 
+  /** Function names the user declared as defined elsewhere (e.g. from an addon not covered by the bundled list). */
+  private knownFunctions(): Set<string> {
+    const names = vscode.workspace.getConfiguration("r4tsk").get<string[]>("knownFunctions", []);
+    return new Set(names.map((n) => n.trim().toLowerCase()).filter((n) => n.length > 0));
+  }
+
   refresh(document: vscode.TextDocument): void {
     const uri = document.uri;
     if (!this.enabled()) {
@@ -31,11 +38,14 @@ export class DiagnosticsManager {
 
     const diagnostics: vscode.Diagnostic[] = [];
     const currentDocs = this.docs?.current;
+    const knownFunctions = this.knownFunctions();
 
     for (const call of parsed.calls) {
       const fn = this.index.resolveFunction(call.name, uri);
       if (!fn) {
         if (findBuiltinFunction(call.name)) continue;
+        if (findAddonFunction(call.name)) continue;
+        if (knownFunctions.has(call.name.toLowerCase())) continue;
         if (currentDocs?.lookupWord(call.name)?.category === "function") continue;
 
         const elsewhere =

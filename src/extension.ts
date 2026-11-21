@@ -141,6 +141,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
       if (doc.languageId !== "skript") return;
+      index.forgetExternal(doc.uri);
       diagnostics.clear(doc.uri);
     }),
     vscode.window.onDidChangeActiveTextEditor((editor) => refreshDecorations(editor)),
