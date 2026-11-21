@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { WorkspaceIndex } from "../parser/workspaceIndex";
 import { maskLine, splitTopLevel } from "../utils/textScanning";
 import { findBuiltinFunction } from "../data/skriptSyntax";
+import { findAddonFunctions, parseSignature } from "../data/addonFunctions";
 import { renderDocMarkdown } from "../utils/docFormat";
 
 export class SkriptSignatureHelpProvider implements vscode.SignatureHelpProvider {
@@ -50,6 +51,24 @@ export class SkriptSignatureHelpProvider implements vscode.SignatureHelpProvider
       help.signatures = [sig];
       help.activeSignature = 0;
       help.activeParameter = Math.max(0, Math.min(activeParam, builtin.params.length - 1));
+      return help;
+    }
+
+    const addonFns = findAddonFunctions(name);
+    if (addonFns.length > 0) {
+      const fnSig = addonFns[0];
+      const parsed = parseSignature(fnSig.signature);
+      const label = `${fnSig.signature}${fnSig.returns && !fnSig.signature.includes("::") ? ` :: ${fnSig.returns}` : ""}`;
+      const doc = new vscode.MarkdownString(
+        `${fnSig.description ? `${fnSig.description}\n\n` : ""}*Function from ${fnSig.addons.join(" / ")}*`
+      );
+      const sig = new vscode.SignatureInformation(label, doc);
+      const params = parsed?.params ?? [];
+      sig.parameters = params.map((p) => new vscode.ParameterInformation(p.label));
+      const help = new vscode.SignatureHelp();
+      help.signatures = [sig];
+      help.activeSignature = 0;
+      help.activeParameter = Math.max(0, Math.min(activeParam, params.length - 1));
       return help;
     }
 

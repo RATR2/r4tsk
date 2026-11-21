@@ -69,6 +69,10 @@
       {
         "command": "r4tsk.manageAddonDocsFiles",
         "title": "r4tsk: Manage Addon Docs Files..."
+      },
+      {
+        "command": "r4tsk.addAddonDocsFromSkriptHub",
+        "title": "r4tsk: Add Addon Docs from SkriptHub..."
       }
     ],
     "configuration": {
@@ -105,6 +109,12 @@
           "default": [],
           "items": { "type": "string" },
           "description": "Absolute paths to additional docs.json files to merge in alongside the core Skript docs - e.g. for addons like SkBee or Skript-GUI. Generate one by running a Skript server with the addon installed and executing '/sk gen-docs' (its docs.json uses the same schema as core Skript's, since the generator captures every installed addon's syntax). Applies live, no reload needed - or run \"r4tsk: Manage Addon Docs Files...\" to add/remove entries with a file browser instead of editing this list by hand."
+        },
+        "r4tsk.addons": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string" },
+          "description": "Names of Skript addons (as listed on SkriptHub, e.g. \"SkBee\", \"Skript-Particle\", \"skript-math\") whose syntax is merged into the docs for hover, matching and diagnostics. The syntax comes from the public SkriptHub API and is cached for a day in the extension's storage. Addon functions are only treated as known for the addons listed here (with none listed, the bundled list of popular addon functions applies). Applies live, no reload needed - or run \"r4tsk: Add Addon Docs from SkriptHub...\" to pick addons from a list."
         },
         "r4tsk.conflictCheck": {
           "type": "boolean",
