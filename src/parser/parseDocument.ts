@@ -9,11 +9,14 @@ import {
   FunctionInfo,
   ParamInfo,
   ParsedDocument,
+  UsingLine,
 } from "./types";
 
 const FUNCTION_HEADER = /^(\s*)function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
 /** `local function` - same shape as a regular function, but only callable from within its own script (see FunctionInfo.isLocal). Kept as its own pattern rather than folding an optional "local" into FUNCTION_HEADER above. */
 const LOCAL_FUNCTION_HEADER = /^(\s*)local\s+function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
+/** Top-level only: Skript ignores/rejects `using` when indented. Matched against the comment-masked line. */
+const USING_LINE = /^using\s+(\S.*?)\s*$/i;
 const COMMAND_HEADER = /^(\s*)command\s+(\/[a-zA-Z0-9_]+)/;
 const EVENT_HEADER = /^(\s*)on\s+([^:]+?)\s*:\s*$/;
 const COMMAND_SUBKEY = /^(\s*)(permission|description|usage|aliases|permission message|cooldown message):\s*(.*)$/i;
@@ -41,10 +44,23 @@ export function parseDocument(document: vscode.TextDocument): ParsedDocument {
   const commands: CommandInfo[] = [];
   const events: EventInfo[] = [];
   const calls: FunctionCallSite[] = [];
+  const usings: UsingLine[] = [];
   const definitionLines = new Set<number>();
 
   for (let lineNo = 0; lineNo < lineCount; lineNo++) {
     const masked = maskedLines[lineNo];
+
+    const usingMatch = USING_LINE.exec(masked);
+    if (usingMatch) {
+      const start = masked.indexOf(usingMatch[1], 5);
+      usings.push({
+        feature: rawLines[lineNo].slice(start, start + usingMatch[1].length),
+        featureRange: new vscode.Range(lineNo, start, lineNo, start + usingMatch[1].length),
+        lineRange: new vscode.Range(lineNo, 0, lineNo, start + usingMatch[1].length),
+      });
+      definitionLines.add(lineNo);
+      continue;
+    }
 
     const localFnMatch = LOCAL_FUNCTION_HEADER.exec(masked);
     const fnMatch = localFnMatch ?? FUNCTION_HEADER.exec(masked);
@@ -126,6 +142,7 @@ export function parseDocument(document: vscode.TextDocument): ParsedDocument {
     commands,
     events,
     calls,
+    usings,
   };
 }
 

@@ -79,6 +79,11 @@
           "default": true,
           "description": "Enable diagnostics for undefined functions, argument mismatches and duplicate definitions."
         },
+        "r4tsk.diagnostics.experimentalNotice": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when syntax that explicitly requires an experimental feature is used without the matching `using <feature>` line, and report `using` lines naming an unknown feature (as information)."
+        },
         "r4tsk.docsPath": {
           "type": "string",
           "default": "",

@@ -8,15 +8,20 @@ import {
   BUILTIN_TYPES,
 } from "../data/skriptSyntax";
 import { renderDocMarkdown } from "../utils/docFormat";
+import { DocsHolder } from "../data/docsHolder";
+import { experimentCompletions } from "./experimentalFeatures";
 
 export class SkriptCompletionProvider implements vscode.CompletionItemProvider {
-  constructor(private readonly index: WorkspaceIndex) {}
+  constructor(private readonly index: WorkspaceIndex, private readonly docs?: DocsHolder) {}
 
   provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position
   ): vscode.CompletionItem[] {
     const linePrefix = document.lineAt(position.line).text.slice(0, position.character);
+    const usingItems = experimentCompletions(document, position, this.docs?.current);
+    if (usingItems) return usingItems;
+
     const items: vscode.CompletionItem[] = [];
 
     if (/^\s*on\s+[a-zA-Z ]*$/.test(linePrefix)) {

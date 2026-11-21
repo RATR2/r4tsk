@@ -116,7 +116,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerSetDocsPathCommand(),
     registerManageAddonDocsCommand(),
     vscode.languages.registerHoverProvider(SKRIPT_SELECTOR, new SkriptHoverProvider(index, docsHolder, crossVersionIndex)),
-    vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index), "{", "(", "%", " "),
+    vscode.languages.registerCompletionItemProvider(SKRIPT_SELECTOR, new SkriptCompletionProvider(index, docsHolder), "{", "(", "%", " "),
     vscode.languages.registerDefinitionProvider(SKRIPT_SELECTOR, new SkriptDefinitionProvider(index)),
     vscode.languages.registerReferenceProvider(SKRIPT_SELECTOR, new SkriptReferenceProvider(index)),
     vscode.languages.registerSignatureHelpProvider(SKRIPT_SELECTOR, new SkriptSignatureHelpProvider(index), "(", ","),
@@ -156,7 +156,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (annotationDecorator.isRelevantConfigChange(e) || customPatternDecorator.isRelevantConfigChange(e)) {
         for (const editor of vscode.window.visibleTextEditors) refreshDecorations(editor);
       }
-      if (e.affectsConfiguration("r4tsk.knownFunctions") || e.affectsConfiguration("r4tsk.diagnostics.enable")) {
+      if (e.affectsConfiguration("r4tsk.knownFunctions") || e.affectsConfiguration("r4tsk.diagnostics.enable") || e.affectsConfiguration("r4tsk.diagnostics.experimentalNotice")) {
         refreshAllOpenDocuments();
       }
       if (e.affectsConfiguration("r4tsk.additionalDocsPaths") || e.affectsConfiguration("r4tsk.docsPath")) {

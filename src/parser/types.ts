@@ -64,6 +64,13 @@ export interface FunctionCallSite {
   args: ArgToken[];
 }
 
+/** A top-level `using <feature>` line that opts the script into an experimental language feature. */
+export interface UsingLine {
+  feature: string;
+  featureRange: vscode.Range;
+  lineRange: vscode.Range;
+}
+
 export interface ParsedDocument {
   uri: vscode.Uri;
   version: number;
@@ -71,4 +78,5 @@ export interface ParsedDocument {
   commands: CommandInfo[];
   events: EventInfo[];
   calls: FunctionCallSite[];
+  usings: UsingLine[];
 }
