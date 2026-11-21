@@ -90,6 +90,11 @@
           "items": { "type": "string" },
           "description": "Absolute paths to additional docs.json files to merge in alongside the core Skript docs - e.g. for addons like SkBee or Skript-GUI. Generate one by running a Skript server with the addon installed and executing '/sk gen-docs' (its docs.json uses the same schema as core Skript's, since the generator captures every installed addon's syntax). Applies live, no reload needed - or run \"r4tsk: Manage Addon Docs Files...\" to add/remove entries with a file browser instead of editing this list by hand."
         },
+        "r4tsk.conflictCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when another Skript extension that also handles .sk files (NeoSkript, IntelliSkript) is installed next to r4tsk, since both together give duplicate completions, hovers and diagnostics."
+        },
         "r4tsk.knownFunctions": {
           "type": "array",
           "default": [],

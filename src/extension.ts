@@ -17,6 +17,7 @@ import { DocsHolder } from "./data/docsHolder";
 import { DocsDownloadManager } from "./data/docsDownloadManager";
 import { CrossVersionIndex } from "./data/crossVersionIndex";
 import { SkriptVersionManager } from "./providers/skriptVersionManager";
+import { checkForConflicts } from "./providers/conflictCheck";
 import { registerManageAddonDocsCommand, registerSetDocsPathCommand } from "./providers/docsPathCommands";
 
 const SKRIPT_SELECTOR: vscode.DocumentSelector = { language: "skript" };
@@ -204,6 +205,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   if (config().get<boolean>("crossVersionSuggestions", true) && !getCustomDocsPath()) {
     void crossVersionIndex.warmUp().then(refreshAllOpenDocuments);
   }
+
+  void checkForConflicts(context);
+  context.subscriptions.push(vscode.extensions.onDidChange(() => void checkForConflicts(context)));
 }
 
 export function deactivate(): void {
