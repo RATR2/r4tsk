@@ -11,3 +11,4 @@ tsconfig.json
 scripts/**
 .env
 .env.*
+.github/**

@@ -39,7 +39,12 @@ loadEnvFile();
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
-const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined;
+const onlyIndex = args.indexOf("--only");
+const only = onlyIndex === -1 ? undefined : args[onlyIndex + 1];
+if (onlyIndex !== -1 && only !== "vsce" && only !== "ovsx") {
+  console.error('\nrelease: --only needs a value, "vsce" or "ovsx"');
+  process.exit(1);
+}
 
 const dryRun = flag("dry-run");
 const targets = [
@@ -75,8 +80,6 @@ function confirm(question) {
 }
 
 async function main() {
-  if (only && !targets.length) fail(`unknown --only value "${only}" (use vsce or ovsx)`);
-
   const version = pkg.version;
   const vsix = `${pkg.name}-${version}.vsix`;
 
