@@ -211,7 +211,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "package": "vsce package",
     "publish:vsce": "vsce publish",
-    "publish:ovsx": "ovsx publish"
+    "publish:ovsx": "ovsx publish",
+    "release": "node scripts/release.js",
+    "release:dry": "node scripts/release.js --dry-run"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
