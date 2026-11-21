@@ -106,6 +106,8 @@ npm run release:dry    # typecheck + package, publishes nothing
 npm run release        # typecheck, package, confirm, then publish to the VS Code Marketplace and Open VSX
 ```
 
+**Publishing from GitHub:** the `Publish` workflow (Actions tab, run manually, `main` only) publishes to the VS Code Marketplace with Trusted Publishing, so no Marketplace token is stored. Set it up once with a policy on the publisher's Trusted Publishing page: owner `RATR2`, repository `r4tsk`, workflow `publish.yml`, no environment. Add an `OVSX_PAT` repository secret if it should also publish to Open VSX.
+
 `npm run release` reads tokens from the environment (`VSCE_PAT` for the Marketplace, `OVSX_PAT` for Open VSX), refuses to run with uncommitted changes, and asks before publishing. Flags: `--only vsce|ovsx`, `--yes`, `--allow-dirty`.
 
 To try it locally: open this folder in VS Code / VSCodium and press F5, or install the
